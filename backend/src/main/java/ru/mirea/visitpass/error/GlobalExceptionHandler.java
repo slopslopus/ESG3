@@ -61,6 +61,20 @@ public class GlobalExceptionHandler {
         .body(body(HttpStatus.FORBIDDEN, ex.getMessage(), request));
   }
 
+  @ExceptionHandler(InvalidCredentialsException.class)
+  public ResponseEntity<ApiError> handleInvalidCredentials(
+      InvalidCredentialsException ex, HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(body(HttpStatus.UNAUTHORIZED, ex.getMessage(), request));
+  }
+
+  @ExceptionHandler(AccountLockedException.class)
+  public ResponseEntity<ApiError> handleLocked(AccountLockedException ex,
+      HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.valueOf(423))
+        .body(body(HttpStatus.valueOf(423), ex.getMessage(), request));
+  }
+
   @ExceptionHandler(ResourceNotFoundException.class)
   public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex,
       HttpServletRequest request) {

@@ -25,8 +25,8 @@ import ru.mirea.visitpass.error.ApiError;
 import ru.mirea.visitpass.error.GlobalExceptionHandler;
 import ru.mirea.visitpass.filter.CorrelationIdFilter;
 import ru.mirea.visitpass.filter.JwtAuthFilter;
+import ru.mirea.visitpass.filter.MustChangePasswordFilter;
 import ru.mirea.visitpass.security.JwtService;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
@@ -92,7 +92,9 @@ public class SecurityConfig {
             .anyRequest().permitAll())
         .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(new JwtAuthFilter(jwtService),
-            UsernamePasswordAuthenticationFilter.class);
+            UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(new MustChangePasswordFilter(jwtService, mapper),
+            JwtAuthFilter.class);
     return http.build();
   }
 

@@ -7,6 +7,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 import ru.mirea.visitpass.config.AppProperties;
 import ru.mirea.visitpass.domain.UserAccount;
 import ru.mirea.visitpass.domain.UserRole;
@@ -38,6 +39,8 @@ public class BootstrapAdminRunner implements ApplicationRunner {
       return;
     }
     AppProperties.BootstrapAdmin admin = properties.getBootstrapAdmin();
+    Assert.hasText(admin.getEmail(), "Bootstrap admin email must be configured");
+    Assert.hasText(admin.getPassword(), "Bootstrap admin password must be configured");
     UserAccount user = new UserAccount();
     user.setUuid(UUID.randomUUID());
     user.setEmail(admin.getEmail());

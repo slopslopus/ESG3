@@ -33,6 +33,10 @@ public class JwtService {
   }
 
   public String createAccess(UserAccount user) {
+    return createAccess(user, user.isMustChangePassword());
+  }
+
+  public String createAccess(UserAccount user, boolean mustChangePassword) {
     Instant now = Instant.now();
     List<String> roles = user.getRoles().stream()
         .map(UserRole::name)
@@ -43,6 +47,7 @@ public class JwtService {
         .subject(user.getEmail())
         .claim("uid", user.getUuid().toString())
         .claim("roles", roles)
+        .claim("mcp", mustChangePassword)
         .issuedAt(Date.from(now))
         .expiration(Date.from(now.plusSeconds(accessMinutes * 60L)))
         .signWith(key)
