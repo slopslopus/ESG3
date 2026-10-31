@@ -253,7 +253,7 @@ async function loadRequests() {
       const host = (r.host && (r.host.fullName || r.host.id)) || '';
       const visitor = (r.visitor && r.visitor.fullName) || '';
       const mark = r.archived ? ' <span class="badge">ARCHIVED</span>' : '';
-      tr.innerHTML = '<td><input type="checkbox" data-id="' + r.id + '"></td>' +
+      tr.innerHTML = '<td><input type="checkbox" data-id="' + esc(r.id) + '"></td>' +
         '<td>' + esc(r.requestCode) + mark + '</td><td>' + esc(visitor) + '</td>' +
         '<td>' + esc(host) + '</td><td>' + esc(r.visitDate) + '</td>' +
         '<td>' + esc(r.status) + '</td><td>' + esc(r.guestCount) + '</td>' +
@@ -272,6 +272,7 @@ function esc(v) {
   return String(v == null ? '' : v).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+function el(f, n) { return f.elements.namedItem(n); }
 
 document.getElementById('reqFilters').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -288,15 +289,18 @@ document.getElementById('reqExportBtn').addEventListener('click', downloadExport
 document.getElementById('csvExportBtn').addEventListener('click', downloadExport);
 
 async function downloadExport() {
-  const q = state.lastReqFilter || currentReqQuery(0);
-  const res = await api('/api/requests/export?' + q);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const blob = await res.blob();
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'requests.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
+  const err = document.getElementById('reqError');
+  try {
+    const q = state.lastReqFilter || currentReqQuery(0);
+    const res = await api('/api/requests/export?' + q);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'requests.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (ex) { err.textContent = ex.message; }
 }
 
 function selectedIds() {
@@ -318,38 +322,50 @@ function bulkResultText(data) {
 
 document.querySelectorAll('#bulkBar [data-bulk]').forEach(b => {
   b.addEventListener('click', async () => {
-    const ids = selectedIds();
-    if (!ids.length) return;
-    const res = await api('/api/requests/bulk', {
-      method: 'POST',
-      body: JSON.stringify({ ids, operation: b.dataset.bulk }),
-    });
-    const data = await jsonOrThrow(res, 'Bulk');
-    alert(bulkResultText(data));
-    loadRequests();
+    const err = document.getElementById('reqError');
+    err.textContent = '';
+    try {
+      const ids = selectedIds();
+      if (!ids.length) return;
+      const res = await api('/api/requests/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ ids, operation: b.dataset.bulk }),
+      });
+      const data = await jsonOrThrow(res, 'Bulk');
+      alert(bulkResultText(data));
+      loadRequests();
+    } catch (ex) { err.textContent = ex.message; }
   });
 });
 document.getElementById('bulkStatusBtn').addEventListener('click', async () => {
-  const ids = selectedIds();
-  if (!ids.length) return;
-  const status = prompt('Новый статус (SUBMITTED/ISSUED/COMPLETED/CANCELLED):');
-  if (!status) return;
-  await api('/api/requests/bulk', {
-    method: 'POST',
-    body: JSON.stringify({ ids, operation: 'SET_STATUS', status }),
-  }).then(r => jsonOrThrow(r, 'Bulk'));
-  loadRequests();
+  const err = document.getElementById('reqError');
+  err.textContent = '';
+  try {
+    const ids = selectedIds();
+    if (!ids.length) return;
+    const status = prompt('Новый статус (SUBMITTED/ISSUED/COMPLETED/CANCELLED):');
+    if (!status) return;
+    await api('/api/requests/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids, operation: 'SET_STATUS', status }),
+    }).then(r => jsonOrThrow(r, 'Bulk'));
+    loadRequests();
+  } catch (ex) { err.textContent = ex.message; }
 });
 document.getElementById('bulkTagBtn').addEventListener('click', async () => {
-  const ids = selectedIds();
-  if (!ids.length) return;
-  const tag = prompt('Тег:');
-  if (!tag) return;
-  const op = confirm('OK = добавить, Отмена = убрать') ? 'ADD_TAG' : 'REMOVE_TAG';
-  await api('/api/requests/bulk', {
-    method: 'POST', body: JSON.stringify({ ids, operation: op, tag }),
-  }).then(r => jsonOrThrow(r, 'Bulk'));
-  loadRequests();
+  const err = document.getElementById('reqError');
+  err.textContent = '';
+  try {
+    const ids = selectedIds();
+    if (!ids.length) return;
+    const tag = prompt('Тег:');
+    if (!tag) return;
+    const op = confirm('OK = добавить, Отмена = убрать') ? 'ADD_TAG' : 'REMOVE_TAG';
+    await api('/api/requests/bulk', {
+      method: 'POST', body: JSON.stringify({ ids, operation: op, tag }),
+    }).then(r => jsonOrThrow(r, 'Bulk'));
+    loadRequests();
+  } catch (ex) { err.textContent = ex.message; }
 });
 
 /* ---------- request card ---------- */
@@ -389,20 +405,20 @@ async function openCard(id) {
     const res = await api('/api/requests/' + encodeURIComponent(id));
     const r = await jsonOrThrow(res, 'Карточка');
     const f = document.getElementById('reqForm');
-    f.id.value = r.id || id;
-    f.version.value = r.version != null ? r.version : '';
-    f.visitorFullName.value = (r.visitor && r.visitor.fullName) || '';
-    f.visitorDocumentType.value = (r.visitor && r.visitor.documentType) || 'PASSPORT';
-    f.visitorDocumentNumber.value = (r.visitor && r.visitor.documentNumber) || '';
-    f.hostEmployeeId.value = (r.host && r.host.id) || '';
-    f.purpose.value = r.purpose || '';
-    f.visitDate.value = (r.visitDate || '').slice(0, 10);
-    f.timeFrom.value = (r.timeFrom || '').slice(0, 5);
-    f.timeTo.value = (r.timeTo || '').slice(0, 5);
-    f.status.value = r.status || 'SUBMITTED';
-    f.guestCount.value = r.guestCount || 1;
-    f.needsEscort.checked = !!r.needsEscort;
-    f.tags.value = (r.tags || []).join(';');
+    el(f, 'id').value = r.id || id;
+    el(f, 'version').value = r.version != null ? r.version : '';
+    el(f, 'visitorFullName').value = (r.visitor && r.visitor.fullName) || '';
+    el(f, 'visitorDocumentType').value = (r.visitor && r.visitor.documentType) || 'PASSPORT';
+    el(f, 'visitorDocumentNumber').value = (r.visitor && r.visitor.documentNumber) || '';
+    el(f, 'hostEmployeeId').value = (r.host && r.host.id) || '';
+    el(f, 'purpose').value = r.purpose || '';
+    el(f, 'visitDate').value = (r.visitDate || '').slice(0, 10);
+    el(f, 'timeFrom').value = (r.timeFrom || '').slice(0, 5);
+    el(f, 'timeTo').value = (r.timeTo || '').slice(0, 5);
+    el(f, 'status').value = r.status || 'SUBMITTED';
+    el(f, 'guestCount').value = r.guestCount || 1;
+    el(f, 'needsEscort').checked = !!r.needsEscort;
+    el(f, 'tags').value = (r.tags || []).join(';');
     document.getElementById('cardTitle').textContent = 'Заявка ' + (r.requestCode || id);
     renderCardMeta(r);
     state.currentReqId = r.id || id;
@@ -417,23 +433,23 @@ document.getElementById('reqForm').addEventListener('submit', async (e) => {
   const err = document.getElementById('cardError');
   err.textContent = '';
   const payload = {
-    visitorFullName: f.visitorFullName.value,
-    visitorDocumentType: f.visitorDocumentType.value,
-    visitorDocumentNumber: f.visitorDocumentNumber.value,
-    hostEmployeeId: f.hostEmployeeId.value,
-    purpose: f.purpose.value,
-    visitDate: f.visitDate.value,
-    timeFrom: f.timeFrom.value,
-    timeTo: f.timeTo.value,
-    status: f.status.value,
-    guestCount: Number(f.guestCount.value),
-    needsEscort: f.needsEscort.checked,
-    tags: f.tags.value.split(/[;,]/).map(s => s.trim().toLowerCase()).filter(Boolean),
+    visitorFullName: el(f, 'visitorFullName').value,
+    visitorDocumentType: el(f, 'visitorDocumentType').value,
+    visitorDocumentNumber: el(f, 'visitorDocumentNumber').value,
+    hostEmployeeId: el(f, 'hostEmployeeId').value,
+    purpose: el(f, 'purpose').value,
+    visitDate: el(f, 'visitDate').value,
+    timeFrom: el(f, 'timeFrom').value,
+    timeTo: el(f, 'timeTo').value,
+    status: el(f, 'status').value,
+    guestCount: Number(el(f, 'guestCount').value),
+    needsEscort: el(f, 'needsEscort').checked,
+    tags: el(f, 'tags').value.split(/[;,]/).map(s => s.trim().toLowerCase()).filter(Boolean),
   };
   try {
     let res;
     if (state.currentReqId) {
-      payload.version = Number(f.version.value);
+      payload.version = Number(el(f, 'version').value);
       res = await api('/api/requests/' + encodeURIComponent(state.currentReqId), {
         method: 'PUT', body: JSON.stringify(payload),
       });
@@ -442,32 +458,41 @@ document.getElementById('reqForm').addEventListener('submit', async (e) => {
     }
     const saved = await jsonOrThrow(res, 'Сохранение');
     state.currentReqId = saved.id;
-    f.version.value = saved.version != null ? saved.version : '';
+    el(f, 'version').value = saved.version != null ? saved.version : '';
     renderCardMeta(saved);
     alert('Сохранено');
   } catch (ex) { err.textContent = ex.message; }
 });
 
 document.getElementById('cardArchive').addEventListener('click', async () => {
-  if (!state.currentReqId) return;
-  await api('/api/requests/' + encodeURIComponent(state.currentReqId), { method: 'DELETE' })
-    .then(r => jsonOrThrow(r, 'Архивирование'));
-  show('requests');
-  loadRequests();
+  const err = document.getElementById('cardError');
+  try {
+    if (!state.currentReqId) return;
+    await api('/api/requests/' + encodeURIComponent(state.currentReqId), { method: 'DELETE' })
+      .then(r => jsonOrThrow(r, 'Архивирование'));
+    show('requests');
+    loadRequests();
+  } catch (ex) { err.textContent = ex.message; }
 });
 document.getElementById('cardRestore').addEventListener('click', async () => {
-  if (!state.currentReqId) return;
-  await api('/api/requests/' + encodeURIComponent(state.currentReqId) + '/restore', { method: 'POST' })
-    .then(r => jsonOrThrow(r, 'Восстановление'));
-  openCard(state.currentReqId);
+  const err = document.getElementById('cardError');
+  try {
+    if (!state.currentReqId) return;
+    await api('/api/requests/' + encodeURIComponent(state.currentReqId) + '/restore', { method: 'POST' })
+      .then(r => jsonOrThrow(r, 'Восстановление'));
+    openCard(state.currentReqId);
+  } catch (ex) { err.textContent = ex.message; }
 });
 document.getElementById('cardDeletePerm').addEventListener('click', async () => {
-  if (!state.currentReqId) return;
-  if (!confirm('Удалить навсегда? Работает только при PERMANENT_DELETE_ENABLED=true.')) return;
-  await api('/api/requests/' + encodeURIComponent(state.currentReqId) + '/permanent', { method: 'DELETE' })
-    .then(r => jsonOrThrow(r, 'Удаление'));
-  show('requests');
-  loadRequests();
+  const err = document.getElementById('cardError');
+  try {
+    if (!state.currentReqId) return;
+    if (!confirm('Удалить навсегда? Работает только при PERMANENT_DELETE_ENABLED=true.')) return;
+    await api('/api/requests/' + encodeURIComponent(state.currentReqId) + '/permanent', { method: 'DELETE' })
+      .then(r => jsonOrThrow(r, 'Удаление'));
+    show('requests');
+    loadRequests();
+  } catch (ex) { err.textContent = ex.message; }
 });
 
 async function loadNotes(id) {
@@ -484,20 +509,26 @@ async function loadNotes(id) {
       const editB = document.createElement('button');
       editB.textContent = 'Править';
       editB.addEventListener('click', async () => {
-        const text = prompt('Текст заметки:', n.text);
-        if (text == null) return;
-        const pinned = confirm('OK = закрепить, Отмена = открепить');
-        await api('/api/requests/notes/' + encodeURIComponent(n.id), {
-          method: 'PUT', body: JSON.stringify({ text, pinned }),
-        }).then(r => jsonOrThrow(r, 'Заметка'));
-        loadNotes(id);
+        const err = document.getElementById('cardError');
+        try {
+          const text = prompt('Текст заметки:', n.text);
+          if (text == null) return;
+          const pinned = confirm('OK = закрепить, Отмена = открепить');
+          await api('/api/requests/notes/' + encodeURIComponent(n.id), {
+            method: 'PUT', body: JSON.stringify({ text, pinned }),
+          }).then(r => jsonOrThrow(r, 'Заметка'));
+          loadNotes(id);
+        } catch (ex) { err.textContent = ex.message; }
       });
       const del = document.createElement('button');
       del.textContent = 'Удалить';
       del.addEventListener('click', async () => {
-        await api('/api/requests/notes/' + encodeURIComponent(n.id), { method: 'DELETE' })
-          .then(r => jsonOrThrow(r, 'Заметка'));
-        loadNotes(id);
+        const err = document.getElementById('cardError');
+        try {
+          await api('/api/requests/notes/' + encodeURIComponent(n.id), { method: 'DELETE' })
+            .then(r => jsonOrThrow(r, 'Заметка'));
+          loadNotes(id);
+        } catch (ex) { err.textContent = ex.message; }
       });
       li.appendChild(editB);
       li.appendChild(del);
@@ -509,13 +540,17 @@ async function loadNotes(id) {
 document.getElementById('noteForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!state.currentReqId) return;
-  const fd = new FormData(e.target);
-  await api('/api/requests/' + encodeURIComponent(state.currentReqId) + '/notes', {
-    method: 'POST',
-    body: JSON.stringify({ text: fd.get('text'), pinned: !!fd.get('pinned') }),
-  }).then(r => jsonOrThrow(r, 'Заметка'));
-  e.target.reset();
-  loadNotes(state.currentReqId);
+  const err = document.getElementById('cardError');
+  err.textContent = '';
+  try {
+    const fd = new FormData(e.target);
+    await api('/api/requests/' + encodeURIComponent(state.currentReqId) + '/notes', {
+      method: 'POST',
+      body: JSON.stringify({ text: fd.get('text'), pinned: !!fd.get('pinned') }),
+    }).then(r => jsonOrThrow(r, 'Заметка'));
+    e.target.reset();
+    loadNotes(state.currentReqId);
+  } catch (ex) { err.textContent = ex.message; }
 });
 
 /* ---------- employees ---------- */
@@ -539,18 +574,21 @@ async function loadEmployees() {
         editB.textContent = 'Править';
         editB.addEventListener('click', () => {
           const f = document.getElementById('empForm');
-          f.id.value = m.id;
-          f.fullName.value = m.fullName || '';
-          f.department.value = m.department || '';
-          f.role.value = m.role || 'OTHER';
+          el(f, 'id').value = m.id;
+          el(f, 'fullName').value = m.fullName || '';
+          el(f, 'department').value = m.department || '';
+          el(f, 'role').value = m.role || 'OTHER';
         });
         const tgl = document.createElement('button');
         tgl.textContent = m.active ? 'Отключить' : 'Включить';
         tgl.addEventListener('click', async () => {
-          const act = m.active ? 'disable' : 'enable';
-          await api('/api/employees/' + encodeURIComponent(m.id) + '/' + act,
-            { method: 'POST' }).then(r => jsonOrThrow(r, 'Сотрудник'));
-          loadEmployees();
+          const err = document.getElementById('empError');
+          try {
+            const act = m.active ? 'disable' : 'enable';
+            await api('/api/employees/' + encodeURIComponent(m.id) + '/' + act,
+              { method: 'POST' }).then(r => jsonOrThrow(r, 'Сотрудник'));
+            loadEmployees();
+          } catch (ex) { err.textContent = ex.message; }
         });
         td.appendChild(editB);
         td.appendChild(tgl);
@@ -586,17 +624,19 @@ document.getElementById('csvPreviewForm').addEventListener('submit', async (e) =
   const fd = new FormData(e.target);
   const info = document.getElementById('csvPreviewInfo');
   info.textContent = '';
-  const res = await api('/api/requests/import/preview', { method: 'POST', body: fd });
-  const data = await jsonOrThrow(res, 'Preview');
-  info.textContent = 'Валидных строк: ' + data.validCount + ', ошибок: ' + (data.errors || []).length;
-  const tb = document.querySelector('#csvErrTable tbody');
-  tb.innerHTML = '';
-  document.getElementById('csvErrTable').hidden = !(data.errors || []).length;
-  for (const er of (data.errors || [])) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + esc(er.row) + '</td><td>' + esc(er.field) + '</td><td>' + esc(er.message) + '</td>';
-    tb.appendChild(tr);
-  }
+  try {
+    const res = await api('/api/requests/import/preview', { method: 'POST', body: fd });
+    const data = await jsonOrThrow(res, 'Preview');
+    info.textContent = 'Валидных строк: ' + data.validCount + ', ошибок: ' + (data.errors || []).length;
+    const tb = document.querySelector('#csvErrTable tbody');
+    tb.innerHTML = '';
+    document.getElementById('csvErrTable').hidden = !(data.errors || []).length;
+    for (const er of (data.errors || [])) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + esc(er.row) + '</td><td>' + esc(er.field) + '</td><td>' + esc(er.message) + '</td>';
+      tb.appendChild(tr);
+    }
+  } catch (ex) { info.textContent = ex.message; }
 });
 document.getElementById('csvApplyForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -604,14 +644,16 @@ document.getElementById('csvApplyForm').addEventListener('submit', async (e) => 
   const mode = fd.get('mode');
   const info = document.getElementById('csvApplyInfo');
   info.textContent = '';
-  const body = new FormData();
-  body.append('file', fd.get('file'));
-  const res = await api('/api/requests/import/apply?mode=' + encodeURIComponent(mode),
-    { method: 'POST', body });
-  const data = await jsonOrThrow(res, 'Import');
-  const errs = (data.errors || []).length;
-  info.textContent = 'Создано: ' + data.created + ', обновлено: ' + data.updated +
-    ', ошибок: ' + errs;
+  try {
+    const body = new FormData();
+    body.append('file', fd.get('file'));
+    const res = await api('/api/requests/import/apply?mode=' + encodeURIComponent(mode),
+      { method: 'POST', body });
+    const data = await jsonOrThrow(res, 'Import');
+    const errs = (data.errors || []).length;
+    info.textContent = 'Создано: ' + data.created + ', обновлено: ' + data.updated +
+      ', ошибок: ' + errs;
+  } catch (ex) { info.textContent = ex.message; }
 });
 
 /* ---------- analytics ---------- */
@@ -675,20 +717,23 @@ async function loadUsers() {
       editB.textContent = 'Править';
       editB.addEventListener('click', () => {
         const f = document.getElementById('userForm');
-        f.id.value = u.id;
-        f.email.value = u.email || '';
-        f.name.value = u.name || '';
-        for (const r of ['VIEWER', 'OPERATOR', 'ADMIN']) f[r].checked = (u.roles || []).includes(r);
-        f.active.checked = u.active !== false;
+        el(f, 'id').value = u.id;
+        el(f, 'email').value = u.email || '';
+        el(f, 'name').value = u.name || '';
+        for (const r of ['VIEWER', 'OPERATOR', 'ADMIN']) el(f, r).checked = (u.roles || []).includes(r);
+        el(f, 'active').checked = u.active !== false;
       });
       const rst = document.createElement('button');
       rst.textContent = 'Сбросить пароль';
       rst.addEventListener('click', async () => {
-        const r2 = await api('/api/admin/users/' + encodeURIComponent(u.id) + '/reset-password',
-          { method: 'POST' }).then(r => jsonOrThrow(r, 'Сброс пароля'));
-        document.getElementById('usersTempPw').textContent =
-          'Временный пароль: ' + r2.temporaryPassword;
-        loadUsers();
+        const err = document.getElementById('usersError');
+        try {
+          const r2 = await api('/api/admin/users/' + encodeURIComponent(u.id) + '/reset-password',
+            { method: 'POST' }).then(r => jsonOrThrow(r, 'Сброс пароля'));
+          document.getElementById('usersTempPw').textContent =
+            'Временный пароль: ' + r2.temporaryPassword;
+          loadUsers();
+        } catch (ex) { err.textContent = ex.message; }
       });
       td.appendChild(editB);
       td.appendChild(rst);
