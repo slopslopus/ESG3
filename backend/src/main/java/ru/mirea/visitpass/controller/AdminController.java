@@ -1,0 +1,72 @@
+package ru.mirea.visitpass.controller;
+
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import ru.mirea.visitpass.dto.admin.AuditEventDto;
+import ru.mirea.visitpass.dto.admin.CreateUserDto;
+import ru.mirea.visitpass.dto.admin.CreateUserResponse;
+import ru.mirea.visitpass.dto.admin.ResetPasswordResponse;
+import ru.mirea.visitpass.dto.admin.UpdateUserDto;
+import ru.mirea.visitpass.dto.admin.UserResponse;
+import ru.mirea.visitpass.service.AdminService;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/admin")
+@PreAuthorize("hasRole('ADMIN')")
+public class AdminController {
+
+  private final AdminService adminService;
+
+  public AdminController(AdminService adminService) {
+    this.adminService = adminService;
+  }
+
+  @GetMapping("/users")
+  public Page<UserResponse> listUsers(
+      @PageableDefault(size = 20) Pageable pageable) {
+    return adminService.listUsers(pageable);
+  }
+
+  @PostMapping("/users")
+  public ResponseEntity<CreateUserResponse> createUser(
+      @Valid @RequestBody CreateUserDto dto) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(adminService.createUser(dto));
+  }
+
+  @PutMapping("/users/{id}")
+  public UserResponse updateUser(@PathVariable UUID id,
+      @Valid @RequestBody UpdateUserDto dto) {
+    return adminService.updateUser(id, dto);
+  }
+
+  @PostMapping("/users/{id}/reset-password")
+  public ResetPasswordResponse resetPassword(@PathVariable UUID id) {
+    return adminService.resetPassword(id);
+  }
+
+  @GetMapping("/audit")
+  public Page<AuditEventDto> listAudit(
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false) String eventType,
+      @PageableDefault(size = 20, sort = "createdAt",
+          direction = Sort.Direction.DESC) Pageable pageable) {
+    return adminService.listAudit(q, eventType, pageable);
+  }
+}
