@@ -120,6 +120,35 @@ class AdminControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
+  void freshUserTokenBlockedOnRequestsUntilPasswordChange() throws Exception {
+    String email = "fresh-" + UUID.randomUUID() + "@example.com";
+    Map<String, Object> body = Map.of(
+        "email", email,
+        "name", "Fresh",
+        "roles", Set.of("VIEWER"));
+    String created = mockMvc.perform(post("/api/admin/users")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(body)))
+        .andExpect(status().isCreated())
+        .andReturn().getResponse().getContentAsString();
+    String temporaryPassword =
+        objectMapper.readTree(created).get("temporaryPassword").asText();
+    String login = mockMvc.perform(post("/api/auth/login")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(
+                Map.of("email", email, "password", temporaryPassword))))
+        .andExpect(status().isOk())
+        .andReturn().getResponse().getContentAsString();
+    String access =
+        objectMapper.readTree(login).get("accessToken").asText();
+    mockMvc.perform(get("/api/requests")
+            .header("Authorization", "Bearer " + access))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("Password change required"));
+  }
+
+  @Test
   @WithMockUser(roles = "OPERATOR")
   void createUserAsOperatorIsForbidden() throws Exception {
     Map<String, Object> body = Map.of(

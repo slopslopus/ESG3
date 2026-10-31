@@ -57,7 +57,6 @@ public class EmployeeController {
       @Valid @RequestBody EmployeeDto dto) {
     requireAdmin();
     EmployeeResponse created = service.create(dto);
-    // TODO(audit): record(REFERENCE_UPDATED, created employee uuid)
     return ResponseEntity.status(HttpStatus.CREATED).body(created);
   }
 
@@ -65,24 +64,18 @@ public class EmployeeController {
   public EmployeeResponse update(@PathVariable UUID id,
       @Valid @RequestBody EmployeeDto dto) {
     requireAdmin();
-    EmployeeResponse updated = service.update(id, dto);
-    // TODO(audit): record(REFERENCE_UPDATED, employee uuid)
-    return updated;
+    return service.update(id, dto);
   }
 
   @PostMapping("/{id}/enable")
   public EmployeeResponse enable(@PathVariable UUID id) {
     requireAdmin();
-    EmployeeResponse updated = service.setActive(id, true);
-    // TODO(audit): record(REFERENCE_UPDATED, employee uuid)
-    return updated;
+    return service.setActive(id, true);
   }
 
   @PostMapping("/{id}/disable")
   public EmployeeResponse disable(@PathVariable UUID id) {
     requireAdmin();
-    EmployeeResponse updated = service.setActive(id, false);
-    // TODO(audit): record(REFERENCE_UPDATED, employee uuid)
-    return updated;
+    return service.setActive(id, false);
   }
 }

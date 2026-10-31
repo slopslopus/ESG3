@@ -38,13 +38,16 @@ public class AdminService {
   private final UserAccountRepository users;
   private final AuditEventRepository auditEvents;
   private final PasswordEncoder passwordEncoder;
+  private final AuditService audits;
   private final SecureRandom random = new SecureRandom();
 
   public AdminService(UserAccountRepository users,
-      AuditEventRepository auditEvents, PasswordEncoder passwordEncoder) {
+      AuditEventRepository auditEvents, PasswordEncoder passwordEncoder,
+      AuditService audits) {
     this.users = users;
     this.auditEvents = auditEvents;
     this.passwordEncoder = passwordEncoder;
+    this.audits = audits;
   }
 
   @Transactional(readOnly = true)
@@ -70,7 +73,8 @@ public class AdminService {
     user.setFailedAttempts(0);
     user.setRoles(roles);
     users.save(user);
-    // TODO(audit): persist USER_CREATED audit event (AuditService is Task 4 scope)
+    audits.record("USER_CREATED", "USER", user.getUuid(),
+        "Created user " + user.getEmail());
     UserResponse base = toResponse(user);
     return new CreateUserResponse(base.id(), base.email(), base.name(),
         base.roles(), base.active(), base.mustChangePassword(),
@@ -97,7 +101,8 @@ public class AdminService {
       user.setActive(dto.active());
     }
     users.save(user);
-    // TODO(audit): persist USER_UPDATED audit event (AuditService is Task 4 scope)
+    audits.record("USER_UPDATED", "USER", user.getUuid(),
+        "Updated user " + user.getEmail());
     return toResponse(user);
   }
 
@@ -109,7 +114,8 @@ public class AdminService {
     user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
     user.setMustChangePassword(true);
     users.save(user);
-    // TODO(audit): persist USER_PASSWORD_RESET audit event (AuditService is Task 4 scope)
+    audits.record("USER_PASSWORD_RESET", "USER", user.getUuid(),
+        "Password reset for user " + user.getEmail());
     return new ResetPasswordResponse(temporaryPassword);
   }
 

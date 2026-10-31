@@ -52,6 +52,7 @@ public class RequestService {
   private final VisitTagRepository tags;
   private final VisitRiskCalculator risks;
   private final AppProperties properties;
+  private final AuditService audits;
 
   @PersistenceContext
   private EntityManager entityManager;
@@ -59,13 +60,14 @@ public class RequestService {
   public RequestService(VisitRequestRepository requests,
       EmployeeRepository employees, VisitorRepository visitors,
       VisitTagRepository tags, VisitRiskCalculator risks,
-      AppProperties properties) {
+      AppProperties properties, AuditService audits) {
     this.requests = requests;
     this.employees = employees;
     this.visitors = visitors;
     this.tags = tags;
     this.risks = risks;
     this.properties = properties;
+    this.audits = audits;
   }
 
   /**
@@ -136,7 +138,8 @@ public class RequestService {
     entity.setUpdatedAt(LocalDateTime.now());
     entity.setTags(resolveTags(dto.getTags()));
     VisitRequest saved = requests.save(entity);
-    // TODO(audit): record(REQUEST_CREATED, VISIT_REQUEST, uuid, ...)
+    audits.record("REQUEST_CREATED", "VISIT_REQUEST", saved.getUuid(),
+        "Created " + saved.getRequestCode());
     return toResponse(saved);
   }
 
@@ -186,7 +189,8 @@ public class RequestService {
     }
     entity.setUpdatedAt(LocalDateTime.now());
     VisitRequest saved = requests.save(entity);
-    // TODO(audit): record(REQUEST_UPDATED, VISIT_REQUEST, uuid, ...)
+    audits.record("REQUEST_UPDATED", "VISIT_REQUEST", saved.getUuid(),
+        "Updated " + saved.getRequestCode());
     return toResponse(saved);
   }
 
@@ -196,7 +200,8 @@ public class RequestService {
     entity.setArchived(true);
     entity.setUpdatedAt(LocalDateTime.now());
     VisitRequest saved = requests.save(entity);
-    // TODO(audit): record(REQUEST_ARCHIVED, VISIT_REQUEST, uuid, ...)
+    audits.record("REQUEST_ARCHIVED", "VISIT_REQUEST", saved.getUuid(),
+        "Archived " + saved.getRequestCode());
     return toResponse(saved);
   }
 
@@ -206,7 +211,8 @@ public class RequestService {
     entity.setArchived(false);
     entity.setUpdatedAt(LocalDateTime.now());
     VisitRequest saved = requests.save(entity);
-    // TODO(audit): record(REQUEST_RESTORED, VISIT_REQUEST, uuid, ...)
+    audits.record("REQUEST_RESTORED", "VISIT_REQUEST", saved.getUuid(),
+        "Restored " + saved.getRequestCode());
     return toResponse(saved);
   }
 
@@ -219,7 +225,8 @@ public class RequestService {
       throw new ForbiddenException("Permanent delete is disabled");
     }
     requests.delete(entity);
-    // TODO(audit): record(REQUEST_DELETED, VISIT_REQUEST, uuid, ...)
+    audits.record("REQUEST_DELETED", "VISIT_REQUEST", uuid,
+        "Deleted " + entity.getRequestCode());
   }
 
 

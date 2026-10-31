@@ -18,8 +18,11 @@ public class EmployeeService {
 
   private final EmployeeRepository repository;
 
-  public EmployeeService(EmployeeRepository repository) {
+  private final AuditService audits;
+
+  public EmployeeService(EmployeeRepository repository, AuditService audits) {
     this.repository = repository;
+    this.audits = audits;
   }
 
   public List<EmployeeResponse> list(Boolean active) {
@@ -44,8 +47,10 @@ public class EmployeeService {
     employee.setDepartment(dto.getDepartment());
     employee.setRole(role);
     employee.setActive(true);
-    // TODO(audit): record(REFERENCE_UPDATED, employee uuid)
-    return toResponse(repository.save(employee));
+    Employee saved = repository.save(employee);
+    audits.record("REFERENCE_UPDATED", "EMPLOYEE", saved.getUuid(),
+        "Employee created: " + saved.getFullName());
+    return toResponse(saved);
   }
 
   @Transactional
@@ -56,16 +61,21 @@ public class EmployeeService {
     employee.setFullName(dto.getFullName());
     employee.setDepartment(dto.getDepartment());
     employee.setRole(role);
-    // TODO(audit): record(REFERENCE_UPDATED, employee uuid)
-    return toResponse(repository.save(employee));
+    Employee saved = repository.save(employee);
+    audits.record("REFERENCE_UPDATED", "EMPLOYEE", saved.getUuid(),
+        "Employee updated: " + saved.getFullName());
+    return toResponse(saved);
   }
 
   @Transactional
   public EmployeeResponse setActive(UUID uuid, boolean active) {
     Employee employee = findByUuid(uuid);
     employee.setActive(active);
-    // TODO(audit): record(REFERENCE_UPDATED, employee uuid)
-    return toResponse(repository.save(employee));
+    Employee saved = repository.save(employee);
+    audits.record("REFERENCE_UPDATED", "EMPLOYEE", saved.getUuid(),
+        (active ? "Employee enabled: " : "Employee disabled: ")
+            + saved.getFullName());
+    return toResponse(saved);
   }
 
   private Employee findByUuid(UUID uuid) {
