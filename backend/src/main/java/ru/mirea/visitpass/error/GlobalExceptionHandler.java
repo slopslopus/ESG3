@@ -4,10 +4,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
@@ -94,6 +97,33 @@ public class GlobalExceptionHandler {
       HttpServletRequest request) {
     return ResponseEntity.status(HttpStatus.CONFLICT)
         .body(body(HttpStatus.CONFLICT, ex.getMessage(), request));
+  }
+
+  @ExceptionHandler({MethodArgumentTypeMismatchException.class,
+      HttpMessageNotReadableException.class})
+  public ResponseEntity<ApiError> handleTypeMismatch(Exception ex,
+      HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(body(HttpStatus.BAD_REQUEST, "Malformed request: "
+            + rootMessage(ex), request));
+  }
+
+  @ExceptionHandler({ObjectOptimisticLockingFailureException.class,
+      jakarta.persistence.OptimisticLockException.class})
+  public ResponseEntity<ApiError> handleOptimisticLock(Exception ex,
+      HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(body(HttpStatus.CONFLICT,
+            "Stale version: record was modified concurrently", request));
+  }
+
+  private static String rootMessage(Exception ex) {
+    Throwable t = ex;
+    while (t.getCause() != null && t.getCause() != t) {
+      t = t.getCause();
+    }
+    String msg = t.getMessage();
+    return msg == null ? ex.getClass().getSimpleName() : msg;
   }
 
   @ExceptionHandler(Exception.class)

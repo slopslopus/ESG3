@@ -32,6 +32,7 @@ public class CreateRequestDto {
   private String purpose;
 
   @NotNull
+  @VisitDateRange
   private LocalDate visitDate;
 
   @NotNull
