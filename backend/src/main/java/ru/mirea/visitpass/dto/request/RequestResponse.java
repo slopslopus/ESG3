@@ -3,7 +3,6 @@ package ru.mirea.visitpass.dto.request;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -195,9 +194,5 @@ public class RequestResponse {
 
   public void setUpdatedAt(LocalDateTime updatedAt) {
     this.updatedAt = updatedAt;
-  }
-
-  public List<String> tagList() {
-    return tags == null ? List.of() : List.copyOf(tags);
   }
 }
