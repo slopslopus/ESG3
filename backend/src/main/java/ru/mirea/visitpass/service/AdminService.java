@@ -1,7 +1,9 @@
 package ru.mirea.visitpass.service;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +21,9 @@ import ru.mirea.visitpass.repository.AuditEventRepository;
 import ru.mirea.visitpass.repository.UserAccountRepository;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,7 +31,7 @@ import java.util.stream.Collectors;
 @Service
 public class AdminService {
 
-  static final int TEMP_PASSWORD_LENGTH = 12;
+  private static final int TEMP_PASSWORD_LENGTH = 12;
   private static final String ALPHABET =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -43,8 +47,10 @@ public class AdminService {
     this.passwordEncoder = passwordEncoder;
   }
 
+  @Transactional(readOnly = true)
   public Page<UserResponse> listUsers(Pageable pageable) {
-    return users.findAll(pageable).map(this::toResponse);
+    return users.findAll(sanitize(pageable, Set.of("email", "name"),
+        Sort.unsorted())).map(this::toResponse);
   }
 
   @Transactional
@@ -107,10 +113,13 @@ public class AdminService {
     return new ResetPasswordResponse(temporaryPassword);
   }
 
+  @Transactional(readOnly = true)
   public Page<AuditEventDto> listAudit(String q, String eventType,
       Pageable pageable) {
+    Pageable safe = sanitize(pageable, Set.of("createdAt", "eventType"),
+        Sort.by(Sort.Direction.DESC, "createdAt"));
     return auditEvents
-        .findAll(AuditSpecifications.filter(q, eventType), pageable)
+        .findAll(AuditSpecifications.filter(q, eventType), safe)
         .map(e -> new AuditEventDto(
             e.getCreatedAt(),
             e.getEventType(),
@@ -119,6 +128,19 @@ public class AdminService {
             e.getDescription(),
             e.getCorrelationId(),
             e.getUser() == null ? null : e.getUser().getEmail()));
+  }
+
+  private static Pageable sanitize(Pageable pageable, Set<String> allowed,
+      Sort fallback) {
+    List<Sort.Order> orders = new ArrayList<>();
+    for (Sort.Order order : pageable.getSort()) {
+      if (allowed.contains(order.getProperty())) {
+        orders.add(order);
+      }
+    }
+    Sort sort = orders.isEmpty() ? fallback : Sort.by(orders);
+    return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+        sort);
   }
 
   private Set<UserRole> parseRoles(Set<String> names) {

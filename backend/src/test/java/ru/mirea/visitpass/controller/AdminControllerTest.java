@@ -229,6 +229,49 @@ class AdminControllerTest {
         .andExpect(jsonPath("$.content[1].description").value("first"));
   }
 
+  @Test
+  @WithMockUser(roles = "ADMIN")
+  void auditIncludesUsernameForNonNullUser() throws Exception {
+    UserAccount actor = users.save(account(
+        "actor-" + UUID.randomUUID() + "@example.com",
+        "Actor", EnumSet.of(UserRole.OPERATOR), true));
+    AuditEvent event = new AuditEvent();
+    event.setUser(actor);
+    event.setEventType("REQUEST_CREATED");
+    event.setEntityType("REQUEST");
+    event.setEntityUuid(UUID.randomUUID());
+    event.setDescription("created by actor");
+    event.setCorrelationId("corr-actor");
+    event.setCreatedAt(LocalDateTime.now());
+    auditEvents.save(event);
+    mockMvc.perform(get("/api/admin/audit")
+            .param("q", "actor"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].username").value(actor.getEmail()));
+  }
+
+  @Test
+  @WithMockUser(roles = "ADMIN")
+  void auditSortByEventTypeAndUnknownSortFallsBack() throws Exception {
+    seedAudit("REQUEST_CREATED", "REQUEST", "gamma", "corr-1",
+        LocalDateTime.now().minusHours(2));
+    seedAudit("AUTH_FAILED", "USER", "beta", "corr-2",
+        LocalDateTime.now().minusHours(1));
+    seedAudit("AUTH_LOGIN", "USER", "alpha", "corr-3",
+        LocalDateTime.now());
+    mockMvc.perform(get("/api/admin/audit")
+            .param("sort", "eventType,asc"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].eventType").value("AUTH_FAILED"))
+        .andExpect(jsonPath("$.content[2].eventType").value("REQUEST_CREATED"));
+    mockMvc.perform(get("/api/admin/audit")
+            .param("sort", "passwordHash,asc"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].description").value("alpha"))
+        .andExpect(jsonPath("$.content[2].description").value("gamma"));
+  }
+
   private UserAccount account(String email, String name, Set<UserRole> roles,
       boolean active) {
     UserAccount user = new UserAccount();
