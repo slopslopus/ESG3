@@ -271,7 +271,81 @@ class CsvControllerTest {
     mockMvc.perform(multipart("/api/requests/import/preview")
             .file(new MockMultipartFile("file", "import.csv",
                 "text/csv", new byte[0])))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.message").value("CSV file is empty"));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void previewHeaderOnlyFileReturns400() throws Exception {
+    mockMvc.perform(multipart("/api/requests/import/preview")
+            .file(new MockMultipartFile("file", "import.csv",
+                "text/csv",
+                (HEADER + "\n").getBytes(StandardCharsets.UTF_8))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.message").value("CSV file is empty"));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void previewShortRowIsRowErrorNot500() throws Exception {
+    String csv = HEADER + "\n"
+        + ",Short Name,PASSPORT," + hostId
+        + ",Contract signing meeting,"
+        + LocalDate.now().plusDays(3) + ",10:00,11:00,SUBMITTED,1\n";
+    mockMvc.perform(multipart("/api/requests/import/preview")
+            .file(new MockMultipartFile("file", "import.csv",
+                "text/csv", csv.getBytes(StandardCharsets.UTF_8))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.validCount").value(0))
+        .andExpect(jsonPath("$.errors[0].row").value(1))
+        .andExpect(jsonPath("$.errors[0].field").value("needsEscort"));
+  }
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void previewEmptyNeedsEscortCellIsRowError() throws Exception {
+    String csv = HEADER + "\n"
+        + ",Short Name,PASSPORT," + hostId
+        + ",Contract signing meeting,"
+        + LocalDate.now().plusDays(3)
+        + ",10:00,11:00,SUBMITTED,1,,\n";
+    mockMvc.perform(multipart("/api/requests/import/preview")
+            .file(new MockMultipartFile("file", "import.csv",
+                "text/csv", csv.getBytes(StandardCharsets.UTF_8))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.validCount").value(0))
+        .andExpect(jsonPath("$.errors[0].row").value(1))
+        .andExpect(jsonPath("$.errors[0].field").value("needsEscort"));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void previewMissingRequestCodeIsRowError() throws Exception {
+    String csv = HEADER + "\n"
+        + ",,,,,,,,,,,\n";
+    mockMvc.perform(multipart("/api/requests/import/preview")
+            .file(new MockMultipartFile("file", "import.csv",
+                "text/csv", csv.getBytes(StandardCharsets.UTF_8))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.validCount").value(0))
+        .andExpect(jsonPath("$.errors[0].row").value(1));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void applyUpsertMissingRequestCodeIsRowError() throws Exception {
+    String csv = HEADER + "\n"
+        + ",,,,,,,,,,,\n";
+    mockMvc.perform(multipart("/api/requests/import/apply")
+            .file(new MockMultipartFile("file", "import.csv",
+                "text/csv", csv.getBytes(StandardCharsets.UTF_8)))
+            .param("mode", "UPSERT"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.created").value(0))
+        .andExpect(jsonPath("$.updated").value(0))
+        .andExpect(jsonPath("$.errors[0].row").value(1));
   }
 
   @Test
@@ -283,7 +357,9 @@ class CsvControllerTest {
             .file(new MockMultipartFile("file", "import.csv",
                 "text/csv", csv.getBytes(StandardCharsets.UTF_8)))
             .param("mode", "BOGUS"))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error").value("Bad Request"))
+        .andExpect(jsonPath("$.message").value("Unknown mode: BOGUS"));
   }
 
   @Test

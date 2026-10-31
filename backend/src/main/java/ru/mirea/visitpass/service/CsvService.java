@@ -107,6 +107,8 @@ public class CsvService {
                 HEADERS.toArray(new String[0]))
                 .setRecordSeparator("\n").get())) {
       for (VisitRequest r : found) {
+        java.time.format.DateTimeFormatter timeFormat =
+            java.time.format.DateTimeFormatter.ofPattern("HH:mm");
         printer.printRecord(
             r.getRequestCode(),
             r.getVisitor().getFullName(),
@@ -114,8 +116,8 @@ public class CsvService {
             r.getHost().getUuid().toString(),
             r.getPurpose(),
             r.getVisitDate().toString(),
-            r.getTimeFrom().toString(),
-            r.getTimeTo().toString(),
+            r.getTimeFrom().format(timeFormat),
+            r.getTimeTo().format(timeFormat),
             r.getStatus().name(),
             String.valueOf(r.getGuestCount()),
             String.valueOf(r.isNeedsEscort()),
@@ -157,10 +159,13 @@ public class CsvService {
     for (int i = 0; i < records.size(); i++) {
       int row = i + 1;
       CSVRecord record = records.get(i);
-      String code = record.isMapped("requestCode")
-          ? record.get("requestCode").trim() : "";
-      CsvRowError error = validate(record, row, mode == ImportMode.UPSERT
-          && !code.isEmpty() ? code : null);
+      String rawCode = record.isMapped("requestCode")
+          ? record.get("requestCode") : null;
+      String code = rawCode == null ? "" : rawCode.trim();
+      VisitRequest existing = mode == ImportMode.UPSERT && !code.isEmpty()
+          ? findByRequestCode(code) : null;
+      CsvRowError error = validate(record, row,
+          mode == ImportMode.UPSERT && !code.isEmpty() ? code : null);
       if (error != null) {
         errors.add(error);
         continue;
@@ -168,8 +173,8 @@ public class CsvService {
       if (mode == ImportMode.CREATE_ONLY) {
         persistCreate(record);
         created++;
-      } else if (!code.isEmpty() && findByRequestCode(code) != null) {
-        persistUpdate(findByRequestCode(code), record);
+      } else if (existing != null) {
+        persistUpdate(existing, record);
         updated++;
       } else {
         persistCreate(record);
@@ -220,6 +225,11 @@ public class CsvService {
 
   private CsvRowError validate(CSVRecord record, int row,
       String upsertCode) {
+    if (record.size() < HEADERS.size()) {
+      String missing = HEADERS.get(record.size());
+      return new CsvRowError(row, missing,
+          "Missing value for column: " + missing);
+    }
     String fullName = record.get("visitorFullName");
     if (fullName == null || fullName.isBlank()
         || fullName.trim().length() < 2
@@ -308,8 +318,12 @@ public class CsvService {
       return new CsvRowError(row, "guestCount",
           "Guest count must be 1-50");
     }
-    String escortRaw = record.get("needsEscort").trim()
-        .toLowerCase(Locale.ROOT);
+    String escortCell = record.get("needsEscort");
+    if (escortCell == null) {
+      return new CsvRowError(row, "needsEscort",
+          "needsEscort must be true or false");
+    }
+    String escortRaw = escortCell.trim().toLowerCase(Locale.ROOT);
     if (!escortRaw.equals("true") && !escortRaw.equals("false")) {
       return new CsvRowError(row, "needsEscort",
           "needsEscort must be true or false");
