@@ -20,9 +20,13 @@ public class Visitor {
   @Column(name = "full_name", nullable = false)
   private String fullName;
 
-  @Enumerated(EnumType.STRING)
   @Column(name = "document_type", nullable = false)
+  @Enumerated(EnumType.STRING)
   private DocumentType documentType;
+
+  @Column(name = "document_number", length = 30)
+  private String documentNumber;
+
 
   public Long getId() {
     return id;
@@ -42,5 +46,13 @@ public class Visitor {
 
   public void setDocumentType(DocumentType documentType) {
     this.documentType = documentType;
+  }
+
+  public String getDocumentNumber() {
+    return documentNumber;
+  }
+
+  public void setDocumentNumber(String documentNumber) {
+    this.documentNumber = documentNumber;
   }
 }

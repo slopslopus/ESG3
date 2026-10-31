@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visit Pass — КР №3</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="topbar">
+  <span id="brand">Visit Pass · КР №3</span>
+  <span id="userbox" hidden><b id="username"></b> <i id="userrole"></i></span>
+  <button id="logoutBtn" hidden>Выйти</button>
+</header>
+
+<nav id="tabs" hidden>
+  <button data-screen="requests">Заявки</button>
+  <button data-screen="employees">Сотрудники</button>
+  <button data-screen="csv" data-role-op="1">CSV</button>
+  <button data-screen="analytics">Аналитика</button>
+  <button data-screen="users" data-role="ADMIN">Пользователи</button>
+  <button data-screen="audit" data-role="ADMIN">Аудит</button>
+</nav>
+
+<main>
+  <section id="screen-login" class="screen">
+    <h2>Вход</h2>
+    <form id="loginForm">
+      <label>Email <input name="email" type="email" required autocomplete="username"></label>
+      <label>Пароль <input name="password" type="password" required autocomplete="current-password"></label>
+      <button type="submit">Войти</button>
+    </form>
+    <p id="loginError" class="error"></p>
+    <div id="mustChangeBox" hidden>
+      <h3>Требуется смена пароля</h3>
+      <form id="changePwForm">
+        <label>Старый пароль <input name="oldPassword" type="password" required></label>
+        <label>Новый пароль <input name="newPassword" type="password" required minlength="8"></label>
+        <button type="submit">Сменить пароль</button>
+      </form>
+      <p id="changePwError" class="error"></p>
+    </div>
+  </section>
+
+  <section id="screen-requests" class="screen" hidden>
+    <h2>Заявки</h2>
+    <form id="reqFilters">
+      <input name="q" placeholder="Поиск (посетитель/цель/код/пропуск)">
+      <select name="employeeId" id="reqEmployeeFilter"><option value="">Сотрудник: все</option></select>
+      <select name="status">
+        <option value="">Статус: все</option>
+        <option>SUBMITTED</option><option>ISSUED</option>
+        <option>COMPLETED</option><option>CANCELLED</option>
+      </select>
+      <select name="escort">
+        <option value="">Сопровождение: все</option>
+        <option value="true">нужно</option><option value="false">не нужно</option>
+      </select>
+      <select name="risk">
+        <option value="">Риск: все</option>
+        <option>LOW</option><option>MEDIUM</option><option>HIGH</option>
+      </select>
+      <input name="tag" placeholder="Тег">
+      <select name="archived">
+        <option value="active">active</option>
+        <option value="archived">archived</option>
+        <option value="all">all</option>
+      </select>
+      <input name="minGuests" type="number" min="1" placeholder="min гостей">
+      <input name="maxGuests" type="number" max="50" placeholder="max гостей">
+      <select name="sort">
+        <option value="visitDate">visitDate</option>
+        <option value="createdAt">createdAt</option>
+        <option value="guestCount">guestCount</option>
+      </select>
+      <select name="dir"><option value="desc">desc</option><option value="asc">asc</option></select>
+      <select name="size"><option>20</option><option>50</option><option>100</option></select>
+      <button type="submit">Применить</button>
+      <button type="button" id="reqExportBtn">Экспорт CSV</button>
+    </form>
+    <div id="bulkBar" data-role-op="1" hidden>
+      <button data-bulk="ARCHIVE">Архивировать выбранные</button>
+      <button data-bulk="RESTORE">Восстановить выбранные</button>
+      <button id="bulkStatusBtn">Сменить статус…</button>
+      <button id="bulkTagBtn">Тег…</button>
+      <button id="newReqBtn">+ Новая заявка</button>
+    </div>
+    <table id="reqTable"><thead><tr>
+      <th><input type="checkbox" id="bulkAll"></th><th>Код</th><th>Посетитель</th>
+      <th>Принимающий</th><th>Дата</th><th>Статус</th><th>Гости</th><th>Риск</th><th></th>
+    </tr></thead><tbody></tbody></table>
+    <div id="reqPager"><button id="reqPrev">←</button><span id="reqPageInfo"></span><button id="reqNext">→</button></div>
+    <p id="reqError" class="error"></p>
+  </section>
+
+  <section id="screen-request-card" class="screen" hidden>
+    <h2 id="cardTitle">Карточка заявки</h2>
+    <div id="cardMeta" class="meta"></div>
+    <form id="reqForm">
+      <input name="id" type="hidden"><input name="version" type="hidden">
+      <label>Посетитель ФИО <input name="visitorFullName" required></label>
+      <label>Документ <select name="visitorDocumentType">
+        <option>PASSPORT</option><option>DRIVER_LICENSE</option><option>MILITARY_ID</option><option>OTHER</option>
+      </select></label>
+      <label>№ документа <input name="visitorDocumentNumber" required></label>
+      <label>Принимающий <select name="hostEmployeeId" id="reqHostSelect" required></select></label>
+      <label>Цель <input name="purpose" required></label>
+      <label>Дата визита <input name="visitDate" type="date" required></label>
+      <label>С <input name="timeFrom" type="time" required></label>
+      <label>По <input name="timeTo" type="time" required></label>
+      <label>Статус <select name="status">
+        <option>SUBMITTED</option><option>ISSUED</option>
+        <option>COMPLETED</option><option>CANCELLED</option>
+      </select></label>
+      <label>Гостей <input name="guestCount" type="number" min="1" max="50" value="1"></label>
+      <label>Сопровождение <input name="needsEscort" type="checkbox"></label>
+      <label>Теги (через ; или ,) <input name="tags"></label>
+      <button type="submit">Сохранить</button>
+      <button type="button" id="cardBack">Назад</button>
+      <button type="button" id="cardArchive">Архивировать</button>
+      <button type="button" id="cardRestore">Восстановить</button>
+      <button type="button" id="cardDeletePerm" data-role="ADMIN">Удалить навсегда</button>
+    </form>
+    <h3>Заметки</h3>
+    <ul id="notesList"></ul>
+    <form id="noteForm" data-role-op="1">
+      <input name="text" placeholder="Текст заметки" required>
+      <label>Закрепить <input name="pinned" type="checkbox"></label>
+      <button type="submit">Добавить</button>
+    </form>
+    <p id="cardError" class="error"></p>
+  </section>
+
+  <section id="screen-employees" class="screen" hidden>
+    <h2>Сотрудники</h2>
+    <label><input type="checkbox" id="empActiveOnly" checked> только активные</label>
+    <table id="empTable"><thead><tr>
+      <th>UUID</th><th>ФИО</th><th>Департамент</th><th>Роль</th><th>Active</th><th data-role="ADMIN"></th>
+    </tr></thead><tbody></tbody></table>
+    <form id="empForm" data-role="ADMIN">
+      <h3>Новый / правка сотрудника</h3>
+      <input name="id" type="hidden">
+      <input name="fullName" placeholder="ФИО" required>
+      <input name="department" placeholder="Департамент" required>
+      <select name="role"><option>SECURITY</option><option>HR</option><option>IT</option>
+        <option>FINANCE</option><option>SALES</option><option>OTHER</option></select>
+      <button type="submit">Сохранить</button>
+    </form>
+    <p id="empError" class="error"></p>
+  </section>
+
+  <section id="screen-csv" class="screen" hidden>
+    <h2>CSV импорт / экспорт</h2>
+    <div><button id="csvExportBtn">Скачать экспорт (текущий фильтр)</button></div>
+    <h3>Проверка (preview, записи нет)</h3>
+    <form id="csvPreviewForm">
+      <input type="file" name="file" accept=".csv,text/csv" required>
+      <button type="submit">Проверить</button>
+    </form>
+    <p id="csvPreviewInfo"></p>
+    <table id="csvErrTable" hidden><thead><tr><th>row</th><th>field</th><th>message</th></tr></thead><tbody></tbody></table>
+    <h3>Применение</h3>
+    <form id="csvApplyForm">
+      <input type="file" name="file" accept=".csv,text/csv" required>
+      <select name="mode"><option>CREATE_ONLY</option><option>UPSERT</option></select>
+      <button type="submit">Применить</button>
+    </form>
+    <p id="csvApplyInfo"></p>
+  </section>
+
+  <section id="screen-analytics" class="screen" hidden>
+    <h2>Аналитика</h2>
+    <div id="analyticsCards" class="cards"></div>
+    <h3>По статусам</h3><table id="anStatus"><tbody></tbody></table>
+    <h3>По риску</h3><table id="anRisk"><tbody></tbody></table>
+    <h3>По сотрудникам</h3><table id="anEmp"><thead><tr><th>Сотрудник</th><th>Заявок</th></tr></thead><tbody></tbody></table>
+    <p id="anError" class="error"></p>
+  </section>
+
+  <section id="screen-users" class="screen" hidden>
+    <h2>Пользователи (ADMIN)</h2>
+    <table id="usersTable"><thead><tr>
+      <th>UUID</th><th>Email</th><th>Имя</th><th>Роли</th><th>Active</th><th>Смена пароля</th><th></th>
+    </tr></thead><tbody></tbody></table>
+    <div id="usersPager"><button id="usersPrev">←</button><span id="usersPageInfo"></span><button id="usersNext">→</button></div>
+    <form id="userForm">
+      <h3>Новый / правка пользователя</h3>
+      <input name="id" type="hidden">
+      <input name="email" type="email" placeholder="email" required>
+      <input name="name" placeholder="Имя" required>
+      <label><input type="checkbox" name="VIEWER" checked> VIEWER</label>
+      <label><input type="checkbox" name="OPERATOR"> OPERATOR</label>
+      <label><input type="checkbox" name="ADMIN"> ADMIN</label>
+      <label>Активен <input type="checkbox" name="active" checked></label>
+      <button type="submit">Сохранить (новый — с временным паролем)</button>
+    </form>
+    <p id="usersTempPw" class="ok"></p>
+    <p id="usersError" class="error"></p>
+  </section>
+
+  <section id="screen-audit" class="screen" hidden>
+    <h2>Аудит (ADMIN)</h2>
+    <form id="auditFilters">
+      <input name="q" placeholder="Поиск: описание/тип/correlationId">
+      <select name="sort"><option value="createdAt">createdAt</option><option value="eventType">eventType</option></select>
+      <select name="dir"><option value="desc">desc</option><option value="asc">asc</option></select>
+      <select name="size"><option>20</option><option>50</option><option>100</option></select>
+      <button type="submit">Применить</button>
+    </form>
+    <table id="auditTable"><thead><tr>
+      <th>Время</th><th>Тип</th><th>Сущность</th><th>UUID</th><th>Описание</th><th>Пользователь</th><th>Correlation</th>
+    </tr></thead><tbody></tbody></table>
+    <div id="auditPager"><button id="auditPrev">←</button><span id="auditPageInfo"></span><button id="auditNext">→</button></div>
+    <p id="auditError" class="error"></p>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
