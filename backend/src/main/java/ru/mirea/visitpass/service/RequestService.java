@@ -166,6 +166,9 @@ public class RequestService {
             || entity.getPassNumber().isBlank())) {
       entity.setPassNumber(nextPassNumber());
     }
+    if (!requiresPass(status)) {
+      entity.setPassNumber(null);
+    }
     checkPassNumber(status, entity.getPassNumber());
     entity.getVisitor().setFullName(dto.getVisitorFullName().trim());
     entity.getVisitor()

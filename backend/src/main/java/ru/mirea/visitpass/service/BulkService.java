@@ -121,10 +121,8 @@ public class BulkService {
       entity.setPassNumber(nextPassNumber());
     }
     if ((status == VisitStatus.SUBMITTED
-        || status == VisitStatus.CANCELLED)
-        && entity.getPassNumber() != null) {
-      throw new IllegalArgumentException(
-          "passNumber must be absent for SUBMITTED/CANCELLED requests");
+        || status == VisitStatus.CANCELLED)) {
+      entity.setPassNumber(null);
     }
     entity.setStatus(status);
   }

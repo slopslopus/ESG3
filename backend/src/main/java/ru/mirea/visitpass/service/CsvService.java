@@ -398,6 +398,9 @@ public class CsvService {
             || entity.getPassNumber().isBlank())) {
       entity.setPassNumber(nextPassNumber());
     }
+    if (!requiresPass(status)) {
+      entity.setPassNumber(null);
+    }
     entity.getVisitor()
         .setFullName(record.get("visitorFullName").trim());
     entity.getVisitor().setDocumentType(DocumentType.valueOf(
