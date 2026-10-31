@@ -11,7 +11,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import ru.mirea.visitpass.domain.DocumentType;
 import ru.mirea.visitpass.domain.Employee;
 import ru.mirea.visitpass.domain.EmployeeRole;
@@ -81,6 +80,9 @@ class RequestControllerTest {
         "CREATE SEQUENCE IF NOT EXISTS visit_request_code_seq START WITH 1");
     jdbcTemplate.execute(
         "ALTER SEQUENCE visit_request_code_seq RESTART WITH 1");
+    jdbcTemplate.execute(
+        "CREATE SEQUENCE IF NOT EXISTS pass_number_seq START WITH 1");
+    jdbcTemplate.execute("ALTER SEQUENCE pass_number_seq RESTART WITH 1");
     Employee host = new Employee();
     host.setUuid(UUID.randomUUID());
     host.setFullName("Ivanov Ivan Ivanovich");
@@ -478,13 +480,49 @@ class RequestControllerTest {
 
   @Test
   @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
-  void issuedWithoutPassIs400() throws Exception {
+  void createIssuedGeneratesPassNumber() throws Exception {
     Map<String, Object> payload = createPayload();
     payload.put("status", "ISSUED");
     mockMvc.perform(post("/api/requests")
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(payload)))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.status").value("ISSUED"))
+        .andExpect(jsonPath("$.passNumber").value("PASS-001"));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void secondIssueIncrementsPassNumber() throws Exception {
+    Map<String, Object> first = createPayload();
+    first.put("status", "ISSUED");
+    mockMvc.perform(post("/api/requests")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(first)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.passNumber").value("PASS-001"));
+    Map<String, Object> second = createPayload();
+    second.put("status", "COMPLETED");
+    second.put("visitorFullName", "Second Issued Visitor");
+    mockMvc.perform(post("/api/requests")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(second)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.passNumber").value("PASS-002"));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void updateToIssuedAssignsPassNumber() throws Exception {
+    String uuid = createRequest();
+    Map<String, Object> payload = createPayload();
+    payload.put("version", 0L);
+    payload.put("status", "ISSUED");
+    mockMvc.perform(put("/api/requests/{id}", uuid)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(payload)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.passNumber").value("PASS-001"));
   }
 
   @Test
@@ -521,6 +559,38 @@ class RequestControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createPayload())))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void updateWithoutTagsKeepsOldTags() throws Exception {
+    Map<String, Object> payload = createPayload();
+    payload.put("tags", new String[]{"keeper"});
+    String uuid = createRequest(payload);
+    Map<String, Object> update = createPayload();
+    update.put("version", 0L);
+    mockMvc.perform(put("/api/requests/{id}", uuid)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(update)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tags[0]").value("keeper"));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void updateWithNewTagsReplaces() throws Exception {
+    Map<String, Object> payload = createPayload();
+    payload.put("tags", new String[]{"old"});
+    String uuid = createRequest(payload);
+    Map<String, Object> update = createPayload();
+    update.put("version", 0L);
+    update.put("tags", new String[]{"new"});
+    mockMvc.perform(put("/api/requests/{id}", uuid)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(update)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tags[0]").value("new"))
+        .andExpect(jsonPath("$.tags", hasSize(1)));
   }
 
   private String createRequestAsOperator() {

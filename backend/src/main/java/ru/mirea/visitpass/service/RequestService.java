@@ -68,6 +68,10 @@ public class RequestService {
     this.properties = properties;
   }
 
+  /**
+   * Lists requests. When {@code risk} is set, totals are page-relative
+   * (risk is computed in memory, not stored).
+   */
   @Transactional(readOnly = true)
   public Page<RequestResponse> list(RequestFilter filter, Pageable pageable) {
     Page<VisitRequest> page =
@@ -97,12 +101,18 @@ public class RequestService {
     return toResponse(findByUuid(uuid));
   }
 
+  /**
+   * Creates a request. {@code tags == null} means "no tags" (empty set).
+   * passNumber is never accepted from clients — it is assigned
+   * server-side from {@code pass_number_seq} when the resulting status
+   * requires it (ISSUED/COMPLETED).
+   */
   @Transactional
   public RequestResponse create(CreateRequestDto dto) {
     VisitStatus status = parseStatus(dto.getStatus(), VisitStatus.SUBMITTED);
     Employee host = findActiveHost(dto.getHostEmployeeId());
     checkTimeWindow(dto.getTimeFrom(), dto.getTimeTo());
-    checkPassNumber(status, null);
+    String passNumber = requiresPass(status) ? nextPassNumber() : null;
     VisitRequest entity = new VisitRequest();
     entity.setUuid(UUID.randomUUID());
     entity.setRequestCode(nextRequestCode());
@@ -117,6 +127,7 @@ public class RequestService {
     entity.setTimeFrom(dto.getTimeFrom());
     entity.setTimeTo(dto.getTimeTo());
     entity.setStatus(status);
+    entity.setPassNumber(passNumber);
     entity.setGuestCount(
         dto.getGuestCount() == null ? 1 : dto.getGuestCount());
     entity.setNeedsEscort(Boolean.TRUE.equals(dto.getNeedsEscort()));
@@ -129,6 +140,13 @@ public class RequestService {
     return toResponse(saved);
   }
 
+  /**
+   * Updates a request. {@code tags == null} leaves tags unchanged
+   * (PUT without tags must not wipe them); a non-null set replaces them.
+   * passNumber is never accepted from clients — it is assigned
+   * server-side from {@code pass_number_seq} on first transition to
+   * ISSUED/COMPLETED.
+   */
   @Transactional
   public RequestResponse update(UUID uuid, UpdateRequestDto dto) {
     VisitRequest entity = findByUuid(uuid);
@@ -140,6 +158,11 @@ public class RequestService {
     VisitStatus status = parseStatus(dto.getStatus(), entity.getStatus());
     Employee host = findActiveHost(dto.getHostEmployeeId());
     checkTimeWindow(dto.getTimeFrom(), dto.getTimeTo());
+    if (requiresPass(status)
+        && (entity.getPassNumber() == null
+            || entity.getPassNumber().isBlank())) {
+      entity.setPassNumber(nextPassNumber());
+    }
     checkPassNumber(status, entity.getPassNumber());
     entity.getVisitor().setFullName(dto.getVisitorFullName().trim());
     entity.getVisitor()
@@ -157,6 +180,9 @@ public class RequestService {
     }
     if (dto.getNeedsEscort() != null) {
       entity.setNeedsEscort(dto.getNeedsEscort());
+    }
+    if (dto.getTags() != null) {
+      entity.setTags(resolveTags(dto.getTags()));
     }
     entity.setUpdatedAt(LocalDateTime.now());
     VisitRequest saved = requests.save(entity);
@@ -219,6 +245,17 @@ public class RequestService {
         .createNativeQuery("SELECT nextval('visit_request_code_seq')")
         .getSingleResult();
     return "VR-" + String.format("%06d", next.longValue());
+  }
+
+  private String nextPassNumber() {
+    Number next = (Number) entityManager
+        .createNativeQuery("SELECT nextval('pass_number_seq')")
+        .getSingleResult();
+    return "PASS-" + String.format("%03d", next.longValue());
+  }
+
+  private static boolean requiresPass(VisitStatus status) {
+    return status == VisitStatus.ISSUED || status == VisitStatus.COMPLETED;
   }
 
   private VisitStatus parseStatus(String raw, VisitStatus fallback) {
