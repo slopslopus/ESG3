@@ -19,11 +19,11 @@ cd backend && ./start-compose.sh
 
 Остановка с сохранением данных: `docker compose -f backend/docker-compose.yml down` (volume `pgdata` остаётся).
 
-## Тестовый админ
+## Тестовый админ (запланировано, Task 4 — auth)
 
-Создаётся при старте из `.env` (`BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_PASSWORD`), если таблица `users` пуста.
+Будет создаваться при старте из `.env` (`BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_PASSWORD`), если таблица `users` пуста.
 
-Вход: `POST /api/auth/login` с email и паролем тестового админа.
+Вход (после Task 4): `POST /api/auth/login` с email и паролем тестового админа.
 
 ## Тесты
 
