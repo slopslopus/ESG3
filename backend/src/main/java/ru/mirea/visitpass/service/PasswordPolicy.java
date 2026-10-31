@@ -12,8 +12,8 @@ public final class PasswordPolicy {
       throw new IllegalArgumentException(
           "Password must be at least 8 characters long");
     }
-    boolean hasLetter = value.chars().anyMatch(Character::isLetter);
-    boolean hasDigit = value.chars().anyMatch(Character::isDigit);
+    boolean hasLetter = value.codePoints().anyMatch(Character::isLetter);
+    boolean hasDigit = value.codePoints().anyMatch(Character::isDigit);
     if (!hasLetter || !hasDigit) {
       throw new IllegalArgumentException(
           "Password must contain at least one letter and one digit");

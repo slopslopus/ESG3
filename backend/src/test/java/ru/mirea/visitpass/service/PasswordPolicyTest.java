@@ -14,6 +14,12 @@ class PasswordPolicyTest {
   }
 
   @Test
+  void exactlySevenCharsThrows() {
+    assertThrows(IllegalArgumentException.class,
+        () -> PasswordPolicy.validate("Pass123"));
+  }
+
+  @Test
   void noDigitThrows() {
     assertThrows(IllegalArgumentException.class,
         () -> PasswordPolicy.validate("password"));

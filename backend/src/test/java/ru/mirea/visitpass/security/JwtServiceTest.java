@@ -59,6 +59,14 @@ class JwtServiceTest {
   }
 
   @Test
+  void tokenFromOtherIssuerRejected() {
+    String token = service.createAccess(user());
+    JwtService otherIssuer = new JwtService(SECRET, "other-issuer", 15);
+
+    assertThrows(JwtException.class, () -> otherIssuer.parse(token));
+  }
+
+  @Test
   void expiredTokenRejected() {
     JwtService noTtl = new JwtService(SECRET, ISSUER, -1);
     String token = noTtl.createAccess(user());

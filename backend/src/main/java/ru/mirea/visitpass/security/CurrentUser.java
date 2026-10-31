@@ -15,6 +15,7 @@ public record CurrentUser(UUID id, String email, List<String> roles) {
     }
     List<String> roles = authentication.getAuthorities().stream()
         .map(GrantedAuthority::getAuthority)
+        .map(a -> a.startsWith("ROLE_") ? a.substring("ROLE_".length()) : a)
         .sorted()
         .toList();
     return new CurrentUser(principal.id(), principal.email(), roles);
