@@ -26,6 +26,7 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -80,6 +81,8 @@ class ReferenceAnalyticsControllerTest {
     return v;
   }
 
+  private static int passSeq = 100;
+
   private VisitRequest request(Visitor visitor, Employee host,
       VisitStatus status, LocalDate date, int guests, boolean escort,
       boolean archived) {
@@ -94,7 +97,7 @@ class ReferenceAnalyticsControllerTest {
     r.setTimeTo(LocalTime.of(10, 0));
     r.setStatus(status);
     if (status == VisitStatus.ISSUED || status == VisitStatus.COMPLETED) {
-      r.setPassNumber("PASS-" + (100 + (int) (Math.random() * 800)));
+      r.setPassNumber("PASS-" + (passSeq++));
     }
     r.setGuestCount(guests);
     r.setNeedsEscort(escort);
@@ -210,6 +213,9 @@ class ReferenceAnalyticsControllerTest {
         .andExpect(jsonPath("$.byRisk.LOW").value(1))
         .andExpect(jsonPath("$.byRisk.HIGH").value(1))
         .andExpect(jsonPath("$.byEmployee", hasSize(2)))
+        .andExpect(jsonPath("$.byEmployee[*].employeeId",
+            containsInAnyOrder(hostA.getUuid().toString(),
+                hostB.getUuid().toString())))
         .andExpect(jsonPath("$.byEmployee[0].employeeName").exists())
         .andExpect(jsonPath("$.byEmployee[0].count").value(1));
   }

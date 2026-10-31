@@ -10,6 +10,7 @@ import ru.mirea.visitpass.error.ResourceNotFoundException;
 import ru.mirea.visitpass.repository.EmployeeRepository;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -83,7 +84,7 @@ public class EmployeeService {
       throw new IllegalArgumentException("role must not be blank");
     }
     try {
-      return EmployeeRole.valueOf(role.trim().toUpperCase());
+      return EmployeeRole.valueOf(role.trim().toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException ex) {
       throw new IllegalArgumentException("Unknown employee role: " + role);
     }
