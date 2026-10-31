@@ -37,7 +37,7 @@ springdoc:
 
 app:
   jwt:
-    secret-base64: ${JWT_SECRET_BASE64:changeme-base64-secret}
+    secret-base64: ${JWT_SECRET_BASE64:mbxkOD2+nPQjUsDyvEfgocLPKIu48WbCUILl9CK+dqs=}
     issuer: ${JWT_ISSUER:visit-pass}
     access-minutes: 15
     refresh-days: 14
