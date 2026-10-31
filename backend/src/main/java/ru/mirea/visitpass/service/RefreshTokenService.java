@@ -75,9 +75,17 @@ public class RefreshTokenService {
   @Transactional
   public CreatedSession rotate(String rawToken, String ip, String userAgent) {
     RefreshSession session = findValid(rawToken);
+    return rotateValid(session.getUser(), rawToken, ip, userAgent);
+  }
+
+  @Transactional
+  public CreatedSession rotateValid(UserAccount user, String rawToken,
+      String ip, String userAgent) {
+    RefreshSession session = sessions.findByTokenHash(hash(rawToken))
+        .orElseThrow(() -> new InvalidCredentialsException("Invalid refresh token"));
     session.setRevokedAt(LocalDateTime.now());
     sessions.save(session);
-    return create(session.getUser(), ip, userAgent);
+    return create(user, ip, userAgent);
   }
 
   @Transactional

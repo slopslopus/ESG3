@@ -40,7 +40,9 @@ public class AuditService {
     UserAccount user = null;
     try {
       CurrentUser current = CurrentUser.current();
-      user = users.findByUuid(current.id()).orElse(null);
+      if (current != null) {
+        user = users.findByUuid(current.id()).orElse(null);
+      }
     } catch (IllegalStateException ex) {
       user = null;
     }

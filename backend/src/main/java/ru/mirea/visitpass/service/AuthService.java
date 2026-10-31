@@ -72,7 +72,7 @@ public class AuthService {
       throw new InvalidCredentialsException(INVALID_MESSAGE);
     }
     user.setFailedAttempts(0);
-    users.save(user);
+    user.setLockedUntil(null);
     String access = jwtService.createAccess(user,
         user.isMustChangePassword());
     RefreshTokenService.CreatedSession created =
@@ -84,11 +84,10 @@ public class AuthService {
   }
   @Transactional
   public TokenResponse refresh(String rawToken, String ip, String userAgent) {
-    UserAccount owner = refreshTokens.findValid(rawToken).getUser();
-    requirePasswordChangeClear(owner);
+    UserAccount user = refreshTokens.findValid(rawToken).getUser();
+    requirePasswordChangeClear(user);
     RefreshTokenService.CreatedSession created =
-        refreshTokens.rotate(rawToken, ip, userAgent);
-    UserAccount user = created.session().getUser();
+        refreshTokens.rotateValid(user, rawToken, ip, userAgent);
     String access = jwtService.createAccess(user,
         user.isMustChangePassword());
     return new TokenResponse(access, created.rawToken());
@@ -110,7 +109,7 @@ public class AuthService {
   public void changePassword(UUID uuid, String oldPassword, String newPassword) {
     UserAccount user = requireUser(uuid);
     if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
-      throw new ForbiddenException("Current password is incorrect");
+      throw new IllegalArgumentException("Current password is incorrect");
     }
     PasswordPolicy.validate(newPassword);
     user.setPasswordHash(passwordEncoder.encode(newPassword));

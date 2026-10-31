@@ -236,6 +236,7 @@ class AuthControllerTest {
   void changePasswordRotatesCredentials() throws Exception {
     JsonNode login = loginBody("view@test", PASSWORD);
     String access = login.get("accessToken").asText();
+    String staleRefresh = login.get("refreshToken").asText();
 
     mockMvc.perform(post("/api/auth/change-password")
             .header("Authorization", "Bearer " + access)
@@ -243,6 +244,12 @@ class AuthControllerTest {
             .content(objectMapper.writeValueAsString(
                 Map.of("oldPassword", PASSWORD, "newPassword", "Newpass2"))))
         .andExpect(status().isOk());
+
+    mockMvc.perform(post("/api/auth/refresh")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(
+                Map.of("refreshToken", staleRefresh))))
+        .andExpect(status().isUnauthorized());
 
     mockMvc.perform(post("/api/auth/login")
             .contentType(MediaType.APPLICATION_JSON)
@@ -267,6 +274,20 @@ class AuthControllerTest {
   }
 
   @Test
+  void changePasswordRejectsWrongOldPassword() throws Exception {
+    JsonNode login = loginBody("view@test", PASSWORD);
+    String access = login.get("accessToken").asText();
+
+    mockMvc.perform(post("/api/auth/change-password")
+            .header("Authorization", "Bearer " + access)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(
+                Map.of("oldPassword", "Wrongpass1", "newPassword", "Newpass2"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Current password is incorrect"));
+  }
+
+  @Test
   void mustChangePasswordBlocksRefreshButAllowsMe() throws Exception {
     JsonNode login = loginBody("mcp@test", PASSWORD);
     assertTrue(login.get("mustChangePassword").asBoolean());
@@ -283,6 +304,24 @@ class AuthControllerTest {
             .content(objectMapper.writeValueAsString(Map.of("refreshToken", refresh))))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.message").value("Password change required"));
+  }
+
+  @Test
+  void mustChangePasswordGuardsOtherEndpoints() throws Exception {
+    JsonNode login = loginBody("mcp@test", PASSWORD);
+    String access = login.get("accessToken").asText();
+
+    mockMvc.perform(get("/api/admin/users")
+            .header("Authorization", "Bearer " + access))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("Password change required"));
+
+    mockMvc.perform(post("/api/auth/change-password")
+            .header("Authorization", "Bearer " + access)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(
+                Map.of("oldPassword", PASSWORD, "newPassword", "Newpass2"))))
+        .andExpect(status().isOk());
   }
 
   @Test
