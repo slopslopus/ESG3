@@ -81,8 +81,10 @@ public class BulkService {
         applyOne(id, operation, parsedStatus, tag);
         response.getSucceeded().add(id);
       } catch (RuntimeException ex) {
+        String message =
+            ex.getMessage() == null ? "Operation failed" : ex.getMessage();
         response.getFailed().add(
-            new BulkResponse.BulkFailure(id, ex.getMessage()));
+            new BulkResponse.BulkFailure(id, message));
       }
     }
     audits.record(BULK_OPERATION, "VISIT_REQUEST", null,

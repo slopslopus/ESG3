@@ -67,12 +67,10 @@ public class NoteService {
   @Transactional
   public NoteResponse update(UUID noteUuid, NoteDto dto) {
     VisitNote note = findNote(noteUuid);
-    if (dto.getText() != null) {
-      if (dto.getText().isBlank()) {
-        throw new IllegalArgumentException("text must not be blank");
-      }
-      note.setText(dto.getText().trim());
+    if (dto.getText().isBlank()) {
+      throw new IllegalArgumentException("text must not be blank");
     }
+    note.setText(dto.getText().trim());
     if (dto.getPinned() != null) {
       note.setPinned(dto.getPinned());
     }

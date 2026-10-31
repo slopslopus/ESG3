@@ -354,6 +354,142 @@ class NoteBulkControllerTest {
   }
 
   @Test
+  void bulkSetStatusToCancelledSucceeds() throws Exception {
+    String uuid = createRequest();
+    Map<String, Object> bulk = new LinkedHashMap<>();
+    bulk.put("ids", java.util.List.of(uuid));
+    bulk.put("operation", "SET_STATUS");
+    bulk.put("status", "CANCELLED");
+    mockMvc.perform(post("/api/requests/bulk")
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.succeeded", hasSize(1)))
+        .andExpect(jsonPath("$.failed", hasSize(0)));
+    assertEquals("CANCELLED", requests
+        .findByUuid(UUID.fromString(uuid)).orElseThrow().getStatus().name());
+  }
+
+  @Test
+  void bulkSetStatusToIssuedAssignsPassNumber() throws Exception {
+    String uuid = createRequest();
+    Map<String, Object> bulk = new LinkedHashMap<>();
+    bulk.put("ids", java.util.List.of(uuid));
+    bulk.put("operation", "SET_STATUS");
+    bulk.put("status", "ISSUED");
+    mockMvc.perform(post("/api/requests/bulk")
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.succeeded", hasSize(1)))
+        .andExpect(jsonPath("$.failed", hasSize(0)));
+    String pass = requests.findByUuid(UUID.fromString(uuid)).orElseThrow()
+        .getPassNumber();
+    assertTrue(pass != null && pass.matches("^PASS-[0-9]{3,6}$"));
+  }
+
+  @Test
+  void bulkEmptyIdsYields400() throws Exception {
+    Map<String, Object> bulk = new LinkedHashMap<>();
+    bulk.put("ids", java.util.List.of());
+    bulk.put("operation", "ARCHIVE");
+    mockMvc.perform(post("/api/requests/bulk")
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  void bulkSetStatusWithoutStatusYields400() throws Exception {
+    Map<String, Object> bulk = new LinkedHashMap<>();
+    bulk.put("ids", java.util.List.of(UUID.randomUUID().toString()));
+    bulk.put("operation", "SET_STATUS");
+    mockMvc.perform(post("/api/requests/bulk")
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  void bulkAddTagWithoutTagYields400() throws Exception {
+    Map<String, Object> bulk = new LinkedHashMap<>();
+    bulk.put("ids", java.util.List.of(UUID.randomUUID().toString()));
+    bulk.put("operation", "ADD_TAG");
+    mockMvc.perform(post("/api/requests/bulk")
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  void bulkUnknownOperationYields400() throws Exception {
+    Map<String, Object> bulk = new LinkedHashMap<>();
+    bulk.put("ids", java.util.List.of(UUID.randomUUID().toString()));
+    bulk.put("operation", "BOGUS_OP");
+    mockMvc.perform(post("/api/requests/bulk")
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  void noteUpdateAndDeleteAlsoAudited() throws Exception {
+    String uuid = createRequest();
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("text", "Audited note");
+    String body = mockMvc.perform(post("/api/requests/{id}/notes", uuid)
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(payload)))
+        .andExpect(status().isCreated())
+        .andReturn().getResponse().getContentAsString();
+    String noteId = objectMapper.readTree(body).get("id").asText();
+    Map<String, Object> update = new LinkedHashMap<>();
+    update.put("text", "Updated text");
+    mockMvc.perform(put("/api/requests/notes/{noteId}", noteId)
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(update)))
+        .andExpect(status().isOk());
+    mockMvc.perform(delete("/api/requests/notes/{noteId}", noteId)
+            .header("Authorization", auth(operToken)))
+        .andExpect(status().isNoContent());
+    assertEquals(1, audits.findAll().stream()
+        .filter(e -> e.getEventType().equals("NOTE_UPDATED"))
+        .count());
+    assertEquals(1, audits.findAll().stream()
+        .filter(e -> e.getEventType().equals("NOTE_DELETED"))
+        .count());
+  }
+
+  @Test
+  void missingNoteYields404() throws Exception {
+    UUID missing = UUID.randomUUID();
+    Map<String, Object> update = new LinkedHashMap<>();
+    update.put("text", "Ghost update");
+    mockMvc.perform(put("/api/requests/notes/{noteId}", missing)
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(update)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404));
+    mockMvc.perform(delete("/api/requests/notes/{noteId}", missing)
+            .header("Authorization", auth(operToken)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status").value(404));
+  }
+
+  @Test
   void auditCapturesNoteCreatedAndBulkOperation() throws Exception {
     String uuid = createRequest();
     Map<String, Object> payload = new LinkedHashMap<>();
