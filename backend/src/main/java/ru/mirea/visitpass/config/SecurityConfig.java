@@ -88,6 +88,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.GET, "/*.js", "/*.css", "/*.ico").permitAll()
             .requestMatchers("/swagger-ui.html", "/swagger-ui/**",
                 "/v3/api-docs/**", "/api-docs/**").hasRole("ADMIN")
+            .requestMatchers("/api/admin/**").hasRole("ADMIN")
             .requestMatchers("/api/**").authenticated()
             .anyRequest().permitAll())
         .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
