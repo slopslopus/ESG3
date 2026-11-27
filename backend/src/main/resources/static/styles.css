@@ -38,3 +38,6 @@ tr.archived td { color: var(--muted); }
 .auth-card form { flex-direction: column; align-items: stretch; }
 .auth-card input { width: 100%; }
 .auth-card .btn-block { width: 100%; background: var(--accent); border-color: var(--accent); color: #fff; margin-top: 8px; }
+#changePwPanel { background: var(--panel); border-top: 1px solid #2b303b; padding: 8px 16px; }
+#changePwPanel form { margin: 8px 0; }
+#changePwLoggedMsg { margin: 4px 0 8px; }

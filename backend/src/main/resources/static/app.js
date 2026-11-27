@@ -63,6 +63,7 @@ function setLoggedIn(user) {
   localStorage.setItem(LS.user, JSON.stringify(user));
   document.getElementById('tabs').hidden = false;
   document.getElementById('logoutBtn').hidden = false;
+  document.getElementById('changePwBtn').hidden = false;
   document.getElementById('userbox').hidden = false;
   document.getElementById('username').textContent = user.name || user.email || '';
   document.getElementById('userrole').textContent = '(' + roles().join(',') + ')';
@@ -75,6 +76,8 @@ function logoutLocal() {
   state.user = null;
   document.getElementById('tabs').hidden = true;
   document.getElementById('logoutBtn').hidden = true;
+  document.getElementById('changePwBtn').hidden = true;
+  document.getElementById('changePwPanel').hidden = true;
   document.getElementById('userbox').hidden = true;
   show('login');
 }
@@ -151,6 +154,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   const fd = new FormData(e.target);
   const err = document.getElementById('loginError');
   err.textContent = '';
+  err.className = 'error';
   try {
     const res = await fetch(API + '/api/auth/login', {
       method: 'POST',
@@ -210,6 +214,34 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
     });
   } catch (_) { /* ignore */ }
   logoutLocal();
+});
+
+document.getElementById('changePwBtn').addEventListener('click', () => {
+  const p = document.getElementById('changePwPanel');
+  p.hidden = !p.hidden;
+  document.getElementById('changePwLoggedMsg').textContent = '';
+});
+document.getElementById('changePwCancel').addEventListener('click', () => {
+  document.getElementById('changePwPanel').hidden = true;
+});
+document.getElementById('changePwLoggedForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const msg = document.getElementById('changePwLoggedMsg');
+  msg.textContent = '';
+  msg.className = '';
+  try {
+    const res = await api('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ oldPassword: fd.get('oldPassword'), newPassword: fd.get('newPassword') }),
+    });
+    await jsonOrThrow(res, 'Смена пароля');
+    e.target.reset();
+    logoutLocal();
+    const le = document.getElementById('loginError');
+    le.className = 'ok';
+    le.textContent = 'Пароль сменён, войдите заново';
+  } catch (ex) { msg.textContent = ex.message; msg.className = 'error'; }
 });
 
 document.querySelectorAll('#tabs [data-screen]').forEach(b => {
