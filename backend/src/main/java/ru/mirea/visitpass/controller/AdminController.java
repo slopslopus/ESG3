@@ -3,6 +3,7 @@ package ru.mirea.visitpass.controller;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -24,12 +25,18 @@ import ru.mirea.visitpass.dto.admin.UpdateUserDto;
 import ru.mirea.visitpass.dto.admin.UserResponse;
 import ru.mirea.visitpass.service.AdminService;
 
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
+
+  private static final int MAX_PAGE_SIZE = 100;
+
+  private static final Set<String> AUDIT_SORTABLE =
+      Set.of("createdAt", "eventType");
 
   private final AdminService adminService;
 
@@ -65,8 +72,29 @@ public class AdminController {
   public Page<AuditEventDto> listAudit(
       @RequestParam(required = false) String q,
       @RequestParam(required = false) String eventType,
-      @PageableDefault(size = 20, sort = "createdAt",
-          direction = Sort.Direction.DESC) Pageable pageable) {
+      @RequestParam(required = false, defaultValue = "0") int page,
+      @RequestParam(required = false, defaultValue = "20") int size,
+      @RequestParam(required = false, defaultValue = "createdAt") String sort,
+      @RequestParam(required = false, defaultValue = "desc") String dir) {
+    if (page < 0) {
+      throw new IllegalArgumentException("page must be >= 0");
+    }
+    if (size < 1 || size > MAX_PAGE_SIZE) {
+      throw new IllegalArgumentException(
+          "size must be between 1 and " + MAX_PAGE_SIZE);
+    }
+    Sort.Direction direction =
+        "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC
+            : Sort.Direction.ASC;
+    Pageable pageable =
+        PageRequest.of(page, size, Sort.by(direction, mapAuditSort(sort)));
     return adminService.listAudit(q, eventType, pageable);
+  }
+
+  private static String mapAuditSort(String sort) {
+    if (!AUDIT_SORTABLE.contains(sort)) {
+      throw new IllegalArgumentException("Unknown sort field: " + sort);
+    }
+    return sort;
   }
 }

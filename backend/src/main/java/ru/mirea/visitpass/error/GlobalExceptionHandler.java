@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
@@ -48,6 +49,31 @@ public class GlobalExceptionHandler {
       HttpServletRequest request) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(body(HttpStatus.BAD_REQUEST, ex.getMessage(), request));
+  }
+  @ExceptionHandler({
+      org.springframework.dao.InvalidDataAccessApiUsageException.class,
+      org.springframework.transaction.TransactionSystemException.class,
+      jakarta.persistence.PersistenceException.class})
+  public ResponseEntity<ApiError> handleWrappedBadRequest(Exception ex,
+      HttpServletRequest request) {
+    IllegalArgumentException badRequest = findCause(ex,
+        IllegalArgumentException.class);
+    if (badRequest == null) {
+      return handleUnexpected(ex, request);
+    }
+    return handleBadRequest(badRequest, request);
+  }
+
+  private static <T extends Throwable> T findCause(Throwable ex,
+      Class<T> type) {
+    Throwable t = ex;
+    while (t != null && t != t.getCause()) {
+      if (type.isInstance(t)) {
+        return type.cast(t);
+      }
+      t = t.getCause();
+    }
+    return null;
   }
 
   @ExceptionHandler(AccessDeniedException.class)
@@ -106,6 +132,14 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(body(HttpStatus.BAD_REQUEST, "Malformed request: "
             + rootMessage(ex), request));
+  }
+
+  @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+  public ResponseEntity<ApiError> handleUnsupportedMediaType(
+      HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(body(HttpStatus.BAD_REQUEST,
+            "Unsupported content type: " + ex.getContentType(), request));
   }
 
   @ExceptionHandler({ObjectOptimisticLockingFailureException.class,

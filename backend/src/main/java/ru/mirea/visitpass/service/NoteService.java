@@ -41,7 +41,7 @@ public class NoteService {
   @Transactional(readOnly = true)
   public List<NoteResponse> list(UUID requestUuid) {
     findRequest(requestUuid);
-    return notes.findByRequestUuidOrderByCreatedAtAsc(requestUuid).stream()
+    return notes.findByRequestUuidOrderByPinnedDescCreatedAtAsc(requestUuid).stream()
         .map(NoteService::toResponse)
         .toList();
   }

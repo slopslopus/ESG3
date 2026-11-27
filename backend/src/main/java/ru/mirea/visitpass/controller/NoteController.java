@@ -14,12 +14,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.mirea.visitpass.dto.bulk.BulkRequest;
-import ru.mirea.visitpass.dto.bulk.BulkResponse;
 import ru.mirea.visitpass.dto.note.NoteDto;
 import ru.mirea.visitpass.dto.note.NoteResponse;
 import ru.mirea.visitpass.error.ForbiddenException;
-import ru.mirea.visitpass.service.BulkService;
 import ru.mirea.visitpass.service.NoteService;
 
 import java.util.HashSet;
@@ -33,11 +30,9 @@ import java.util.stream.Collectors;
 public class NoteController {
 
   private final NoteService notes;
-  private final BulkService bulk;
 
-  public NoteController(NoteService notes, BulkService bulk) {
+  public NoteController(NoteService notes) {
     this.notes = notes;
-    this.bulk = bulk;
   }
 
   @GetMapping("/{id}/notes")
@@ -68,11 +63,6 @@ public class NoteController {
     return ResponseEntity.noContent().build();
   }
 
-  @PostMapping("/bulk")
-  public BulkResponse bulk(@Valid @RequestBody BulkRequest dto) {
-    requireAny("OPERATOR", "ADMIN");
-    return bulk.bulk(dto);
-  }
 
   // Manual role check in the style of RequestController: SecurityConfig is
   // owned by another module, so @PreAuthorize is not enabled from here.

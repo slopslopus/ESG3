@@ -116,6 +116,19 @@ class CsvControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void previewFlagsTooLongTagPerRow() throws Exception {
+    String csv = HEADER + "\n" + csvRow(hostId.toString(), "SUBMITTED")
+        .replace("vip;internal", "vip;" + "t".repeat(51));
+    MockMultipartFile file = new MockMultipartFile("file", "tags.csv",
+        "text/csv", csv.getBytes(StandardCharsets.UTF_8));
+    mockMvc.perform(multipart("/api/requests/import/preview").file(file))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.validCount").value(0))
+        .andExpect(jsonPath("$.errors[0].field").value("tags"));
+  }
+
+  @Test
   @WithMockUser(username = "v", authorities = "ROLE_VIEWER")
   void exportReturnsCsvWithHeader() throws Exception {
     createRequest("Contract signing meeting", "SUBMITTED");

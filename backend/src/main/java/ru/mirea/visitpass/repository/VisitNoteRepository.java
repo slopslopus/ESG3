@@ -11,5 +11,5 @@ public interface VisitNoteRepository extends JpaRepository<VisitNote, Long> {
 
   Optional<VisitNote> findByUuid(UUID uuid);
 
-  List<VisitNote> findByRequestUuidOrderByCreatedAtAsc(UUID requestUuid);
+  List<VisitNote> findByRequestUuidOrderByPinnedDescCreatedAtAsc(UUID requestUuid);
 }

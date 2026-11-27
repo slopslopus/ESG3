@@ -49,7 +49,7 @@ public class CreateRequestDto {
 
   private Boolean needsEscort;
 
-  private Set<String> tags;
+  private Set<@Size(max = 50) String> tags;
 
   public String getVisitorFullName() {
     return visitorFullName;

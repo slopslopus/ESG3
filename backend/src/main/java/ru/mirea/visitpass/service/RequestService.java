@@ -192,6 +192,7 @@ public class RequestService {
     }
     entity.setUpdatedAt(LocalDateTime.now());
     VisitRequest saved = requests.save(entity);
+    entityManager.flush();
     audits.record("REQUEST_UPDATED", "VISIT_REQUEST", saved.getUuid(),
         "Updated " + saved.getRequestCode());
     return toResponse(saved);

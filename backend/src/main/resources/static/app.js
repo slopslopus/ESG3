@@ -11,6 +11,7 @@ const state = {
   lastReqFilter: null, lastAuditFilter: null,
   currentReqId: null,
   employees: [], // cached GET /api/employees (active) for dropdowns
+  permanentDeleteEnabled: false,
 };
 
 function roles() { return (state.user && state.user.roles) || []; }
@@ -38,6 +39,23 @@ function applyRoleVisibility() {
     if (b.dataset.role === 'ADMIN' && !admin) b.style.display = 'none';
     else b.style.display = '';
   });
+  applyDeletePermVisibility();
+}
+
+async function refreshConfig() {
+  try {
+    const res = await api('/api/config');
+    const data = await jsonOrThrow(res, 'Конфиг');
+    state.permanentDeleteEnabled = data.permanentDeleteEnabled === true;
+  } catch (_) {
+    state.permanentDeleteEnabled = false;
+  }
+  applyDeletePermVisibility();
+}
+
+function applyDeletePermVisibility() {
+  const btn = document.getElementById('cardDeletePerm');
+  if (btn) btn.style.display = (isAdmin() && state.permanentDeleteEnabled) ? '' : 'none';
 }
 
 function setLoggedIn(user) {
@@ -49,6 +67,7 @@ function setLoggedIn(user) {
   document.getElementById('username').textContent = user.name || user.email || '';
   document.getElementById('userrole').textContent = '(' + roles().join(',') + ')';
   applyRoleVisibility();
+  refreshConfig();
 }
 
 function logoutLocal() {

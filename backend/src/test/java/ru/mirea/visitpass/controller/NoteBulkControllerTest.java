@@ -222,6 +222,65 @@ class NoteBulkControllerTest {
   }
 
   @Test
+  void noteTextBoundedAt2000() throws Exception {
+    String uuid = createRequest();
+    Map<String, Object> ok = new LinkedHashMap<>();
+    ok.put("text", "x".repeat(2000));
+    mockMvc.perform(post("/api/requests/{id}/notes", uuid)
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(ok)))
+        .andExpect(status().isCreated());
+    Map<String, Object> tooLong = new LinkedHashMap<>();
+    tooLong.put("text", "x".repeat(2001));
+    mockMvc.perform(post("/api/requests/{id}/notes", uuid)
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(tooLong)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void pinnedNotesListedFirst() throws Exception {
+    String uuid = createRequest();
+    Map<String, Object> plain = new LinkedHashMap<>();
+    plain.put("text", "plain note");
+    mockMvc.perform(post("/api/requests/{id}/notes", uuid)
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(plain)))
+        .andExpect(status().isCreated());
+    Map<String, Object> pinned = new LinkedHashMap<>();
+    pinned.put("text", "pinned note");
+    pinned.put("pinned", true);
+    mockMvc.perform(post("/api/requests/{id}/notes", uuid)
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(pinned)))
+        .andExpect(status().isCreated());
+    mockMvc.perform(get("/api/requests/{id}/notes", uuid)
+            .header("Authorization", auth(operToken)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$", hasSize(2)))
+        .andExpect(jsonPath("$[0].text").value("pinned note"))
+        .andExpect(jsonPath("$[1].text").value("plain note"));
+  }
+
+  @Test
+  void bulkAddTooLongTagIsBadRequest() throws Exception {
+    String uuid = createRequest();
+    Map<String, Object> bulk = new LinkedHashMap<>();
+    bulk.put("ids", java.util.List.of(uuid));
+    bulk.put("operation", "ADD_TAG");
+    bulk.put("tag", "t".repeat(51));
+    mockMvc.perform(post("/api/requests/bulk")
+            .header("Authorization", auth(operToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void noteOnMissingRequestReturns404() throws Exception {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("text", "Orphan note");

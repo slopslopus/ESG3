@@ -19,11 +19,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import ru.mirea.visitpass.dto.bulk.BulkRequest;
+import ru.mirea.visitpass.dto.bulk.BulkResponse;
 import ru.mirea.visitpass.dto.request.CreateRequestDto;
 import ru.mirea.visitpass.dto.request.RequestResponse;
 import ru.mirea.visitpass.dto.request.UpdateRequestDto;
 import ru.mirea.visitpass.error.ForbiddenException;
 import ru.mirea.visitpass.filter.RequestFilter;
+import ru.mirea.visitpass.service.BulkService;
 import ru.mirea.visitpass.service.RequestService;
 
 import java.util.HashSet;
@@ -42,8 +45,11 @@ public class RequestController {
 
   private final RequestService service;
 
-  public RequestController(RequestService service) {
+  private final BulkService bulk;
+
+  public RequestController(RequestService service, BulkService bulk) {
     this.service = service;
+    this.bulk = bulk;
   }
 
   @GetMapping
@@ -62,13 +68,19 @@ public class RequestController {
       @RequestParam(required = false, defaultValue = "visitDate") String sort,
       @RequestParam(required = false, defaultValue = "asc") String dir) {
     requireAny("VIEWER", "OPERATOR", "ADMIN");
+    if (page < 0) {
+      throw new IllegalArgumentException("page must be >= 0");
+    }
+    if (size < 1 || size > MAX_PAGE_SIZE) {
+      throw new IllegalArgumentException(
+          "size must be between 1 and " + MAX_PAGE_SIZE);
+    }
     String property = mapSort(sort);
     Sort.Direction direction =
         "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC
             : Sort.Direction.ASC;
     Pageable pageable =
-        PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE),
-            Sort.by(direction, property));
+        PageRequest.of(page, size, Sort.by(direction, property));
     RequestFilter filter = new RequestFilter();
     filter.setQ(q);
     filter.setEmployeeId(employeeId);
@@ -101,6 +113,12 @@ public class RequestController {
       @Valid @RequestBody UpdateRequestDto dto) {
     requireAny("OPERATOR", "ADMIN");
     return service.update(id, dto);
+  }
+
+  @PostMapping("/bulk")
+  public BulkResponse bulk(@Valid @RequestBody BulkRequest dto) {
+    requireAny("OPERATOR", "ADMIN");
+    return bulk.bulk(dto);
   }
 
   @DeleteMapping("/{id}")

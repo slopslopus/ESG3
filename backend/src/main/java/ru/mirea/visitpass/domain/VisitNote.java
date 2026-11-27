@@ -32,7 +32,7 @@ public class VisitNote {
   @JoinColumn(name = "author_id", nullable = false)
   private UserAccount author;
 
-  @Column(name = "text", nullable = false)
+  @Column(name = "text", nullable = false, columnDefinition = "TEXT")
   private String text;
 
   @Column(name = "pinned", nullable = false)

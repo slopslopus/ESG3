@@ -328,6 +328,16 @@ public class CsvService {
       return new CsvRowError(row, "needsEscort",
           "needsEscort must be true or false");
     }
+    String tagsCell = record.get("tags");
+    if (tagsCell != null && !tagsCell.isBlank()) {
+      for (String part : tagsCell.split(";")) {
+        String tagName = part.trim();
+        if (!tagName.isEmpty() && tagName.length() > 50) {
+          return new CsvRowError(row, "tags",
+              "Tag must be 1-50 characters: " + tagName);
+        }
+      }
+    }
     if (upsertCode == null) {
       String code = record.isMapped("requestCode")
           ? record.get("requestCode").trim() : "";

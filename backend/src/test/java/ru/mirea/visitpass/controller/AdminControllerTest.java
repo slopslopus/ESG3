@@ -282,7 +282,7 @@ class AdminControllerTest {
 
   @Test
   @WithMockUser(roles = "ADMIN")
-  void auditSortByEventTypeAndUnknownSortFallsBack() throws Exception {
+  void auditSortsByEventTypeAsc() throws Exception {
     seedAudit("REQUEST_CREATED", "REQUEST", "gamma", "corr-1",
         LocalDateTime.now().minusHours(2));
     seedAudit("AUTH_FAILED", "USER", "beta", "corr-2",
@@ -290,15 +290,41 @@ class AdminControllerTest {
     seedAudit("AUTH_LOGIN", "USER", "alpha", "corr-3",
         LocalDateTime.now());
     mockMvc.perform(get("/api/admin/audit")
-            .param("sort", "eventType,asc"))
+            .param("sort", "eventType")
+            .param("dir", "asc"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[0].eventType").value("AUTH_FAILED"))
         .andExpect(jsonPath("$.content[2].eventType").value("REQUEST_CREATED"));
+  }
+
+  @Test
+  @WithMockUser(roles = "ADMIN")
+  void auditDirAscDescFlipsOrder() throws Exception {
+    seedAudit("AUTH_LOGIN", "USER", "older", "corr-1",
+        LocalDateTime.now().minusHours(2));
+    seedAudit("AUTH_FAILED", "USER", "newer", "corr-2",
+        LocalDateTime.now());
     mockMvc.perform(get("/api/admin/audit")
-            .param("sort", "passwordHash,asc"))
+            .param("sort", "createdAt")
+            .param("dir", "asc"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content[0].description").value("alpha"))
-        .andExpect(jsonPath("$.content[2].description").value("gamma"));
+        .andExpect(jsonPath("$.content[0].description").value("older"))
+        .andExpect(jsonPath("$.content[1].description").value("newer"));
+    mockMvc.perform(get("/api/admin/audit")
+            .param("sort", "createdAt")
+            .param("dir", "desc"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].description").value("newer"))
+        .andExpect(jsonPath("$.content[1].description").value("older"));
+  }
+
+  @Test
+  @WithMockUser(roles = "ADMIN")
+  void auditUnknownSortIsBadRequest() throws Exception {
+    mockMvc.perform(get("/api/admin/audit")
+            .param("sort", "passwordHash"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message", containsString("Unknown sort field")));
   }
 
   private UserAccount account(String email, String name, Set<UserRole> roles,

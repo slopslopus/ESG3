@@ -62,6 +62,10 @@ public class BulkService {
         && (tag == null || tag.isEmpty())) {
       throw new IllegalArgumentException("tag is required for " + operation);
     }
+    if (tag != null && tag.length() > 50) {
+      throw new IllegalArgumentException(
+          "tag must be between 1 and 50 characters");
+    }
     VisitStatus parsedStatus = null;
     String statusError = null;
     if (operation.equals("SET_STATUS")) {

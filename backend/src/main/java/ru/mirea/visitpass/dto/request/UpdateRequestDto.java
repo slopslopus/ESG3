@@ -52,7 +52,7 @@ public class UpdateRequestDto {
 
   private Boolean needsEscort;
 
-  private Set<String> tags;
+  private Set<@Size(max = 50) String> tags;
 
   public Long getVersion() {
     return version;

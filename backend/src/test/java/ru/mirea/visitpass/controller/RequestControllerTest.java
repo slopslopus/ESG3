@@ -154,6 +154,26 @@ class RequestControllerTest {
 
   @Test
   @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void createWithTooLongTagReturns400() throws Exception {
+    Map<String, Object> payload = createPayload();
+    payload.put("tags", java.util.Set.of("ok-tag", "t".repeat(51)));
+    mockMvc.perform(post("/api/requests")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(payload)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void createWithPlainTextBodyReturns400() throws Exception {
+    mockMvc.perform(post("/api/requests")
+            .contentType(MediaType.TEXT_PLAIN)
+            .content("not json"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
   void createReturns201AndFirstSequenceCode() throws Exception {
     mockMvc.perform(post("/api/requests")
             .contentType(MediaType.APPLICATION_JSON)
@@ -257,13 +277,69 @@ class RequestControllerTest {
 
   @Test
   @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
-  void sizeIsCappedAt100() throws Exception {
-    createRequest();
+  void oversizedPageIs400() throws Exception {
     mockMvc.perform(get("/api/requests").param("size", "1000"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400))
+        .andExpect(jsonPath("$.correlationId").exists());
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void maxPageSizeIsAccepted() throws Exception {
+    createRequest();
+    mockMvc.perform(get("/api/requests").param("size", "100"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.size").value(100));
   }
 
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void negativePageIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("page", "-1"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void zeroSizeIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("size", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void negativeSizeIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("size", "-5"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void sortInjectionIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("sort", "id;DROP"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void nonNumericSizeIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("size", "abc"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void nonNumericPageIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("page", "abc"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
   @Test
   @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
   void sortGuestCountDescOrders() throws Exception {
@@ -373,6 +449,71 @@ class RequestControllerTest {
     mockMvc.perform(get("/api/requests").param("maxGuests", "2"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content", hasSize(1)));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void bogusArchivedModeIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("archived", "sometimes"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void bogusStatusFilterIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("status", "BOGUS"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void bogusRiskFilterIs400() throws Exception {
+    mockMvc.perform(get("/api/requests").param("risk", "BOGUS"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void malformedUuidInPathIs400() throws Exception {
+    mockMvc.perform(get("/api/requests/not-a-uuid"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void pageBeyondEndIsEmptyNot500() throws Exception {
+    createRequest();
+    mockMvc.perform(get("/api/requests").param("page", "99"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content", hasSize(0)));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void zeroGuestCountIs400() throws Exception {
+    Map<String, Object> payload = createPayload();
+    payload.put("guestCount", 0);
+    mockMvc.perform(post("/api/requests")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(payload)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @WithMockUser(username = "op", authorities = "ROLE_OPERATOR")
+  void oversizedGuestCountIs400() throws Exception {
+    Map<String, Object> payload = createPayload();
+    payload.put("guestCount", 51);
+    mockMvc.perform(post("/api/requests")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(payload)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400));
   }
 
   @Test

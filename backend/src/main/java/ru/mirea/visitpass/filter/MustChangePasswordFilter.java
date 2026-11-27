@@ -17,8 +17,9 @@ import java.io.IOException;
 import java.time.Instant;
 /**
  * Blocks authenticated requests carrying a stale must-change-password access
- * token for every endpoint except {@code /api/auth/me} and
- * {@code /api/auth/change-password}. The flag travels in the {@code mcp}
+ * token for every endpoint except {@code /api/auth/me},
+ * {@code /api/auth/change-password} and {@code /api/config}. The flag
+ * travels in the {@code mcp}
  * JWT claim issued at login/refresh time; after a password change the client
  * must refresh to obtain an {@code mcp:false} token (the old access token
  * expires within access-minutes at most).
@@ -75,6 +76,7 @@ public class MustChangePasswordFilter extends OncePerRequestFilter {
       return false;
     }
     return !path.equals("/api/auth/me")
-        && !path.equals("/api/auth/change-password");
+        && !path.equals("/api/auth/change-password")
+        && !path.equals("/api/config");
   }
 }
