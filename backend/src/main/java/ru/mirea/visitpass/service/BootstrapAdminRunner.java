@@ -47,7 +47,7 @@ public class BootstrapAdminRunner implements ApplicationRunner {
     user.setName(admin.getName());
     user.setPasswordHash(passwordEncoder.encode(admin.getPassword()));
     user.setActive(true);
-    user.setMustChangePassword(true);
+    user.setMustChangePassword(admin.isMustChangePassword());
     user.setFailedAttempts(0);
     user.setRoles(EnumSet.of(UserRole.ADMIN));
     users.save(user);

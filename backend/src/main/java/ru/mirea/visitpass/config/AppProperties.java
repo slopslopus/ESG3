@@ -69,6 +69,7 @@ public class AppProperties {
     private String email;
     private String name;
     private String password;
+    private boolean mustChangePassword = true;
 
     public String getEmail() {
       return email;
@@ -92,6 +93,14 @@ public class AppProperties {
 
     public void setPassword(String password) {
       this.password = password;
+    }
+
+    public boolean isMustChangePassword() {
+      return mustChangePassword;
+    }
+
+    public void setMustChangePassword(boolean mustChangePassword) {
+      this.mustChangePassword = mustChangePassword;
     }
   }
 

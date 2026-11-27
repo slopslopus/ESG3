@@ -45,6 +45,7 @@ app:
     email: ${BOOTSTRAP_ADMIN_EMAIL:admin@example.com}
     name: ${BOOTSTRAP_ADMIN_NAME:Administrator}
     password: ${BOOTSTRAP_ADMIN_PASSWORD:changeme}
+    must-change-password: ${BOOTSTRAP_ADMIN_MUST_CHANGE_PASSWORD:true}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   security:
