@@ -81,6 +81,8 @@ function logoutLocal() {
 
 function needPasswordChange() {
   document.getElementById('mustChangeBox').hidden = false;
+  document.getElementById('tabs').hidden = true;
+  document.getElementById('userbox').hidden = true;
   show('login');
 }
 
@@ -158,10 +160,10 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const data = await jsonOrThrow(res, 'Вход');
     localStorage.setItem(LS.access, data.accessToken);
     localStorage.setItem(LS.refresh, data.refreshToken);
-    setLoggedIn(data.user);
     if (data.mustChangePassword) {
       needPasswordChange();
     } else {
+      setLoggedIn(data.user);
       document.getElementById('mustChangeBox').hidden = true;
       show('requests');
       loadRequests();
@@ -181,6 +183,18 @@ document.getElementById('changePwForm').addEventListener('submit', async (e) => 
     });
     await jsonOrThrow(res, 'Смена пароля');
     document.getElementById('mustChangeBox').hidden = true;
+    e.target.reset();
+    const relogin = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.querySelector('#loginForm [name="email"]').value,
+        password: fd.get('newPassword'),
+      }),
+    });
+    const loginData = await jsonOrThrow(relogin, 'Вход');
+    localStorage.setItem(LS.access, loginData.accessToken);
+    localStorage.setItem(LS.refresh, loginData.refreshToken);
     const me = await api('/api/auth/me').then(r => jsonOrThrow(r, 'Профиль'));
     setLoggedIn(me);
     show('requests');
