@@ -4,6 +4,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.TestPropertySource;
 import ru.mirea.visitpass.domain.DocumentType;
 import ru.mirea.visitpass.domain.Employee;
@@ -26,6 +29,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @DataJpaTest
 @TestPropertySource(properties = {
@@ -166,4 +171,55 @@ class RequestFilterTest {
     assertTrue(activeCodes.contains(submitted.getRequestCode()));
     assertTrue(activeCodes.contains(issued.getRequestCode()));
   }
+  @Test
+  void riskFiltersByComputedLevel() {
+    submitted.setNeedsEscort(true);
+    submitted.setGuestCount(3);
+    RequestFilter high = filter();
+    high.setRisk("HIGH");
+    assertEquals(List.of("VR-000101"), codes(high));
+    RequestFilter medium = filter();
+    medium.setRisk("medium");
+    assertEquals(List.of("VR-000102"), codes(medium));
+    RequestFilter low = filter();
+    low.setRisk("LOW");
+    assertEquals(List.of("VR-000103"), codes(low));
+  }
+
+  @Test
+  void riskFilterPaginatesWithFullTotals() {
+    RequestFilter f = filter();
+    f.setRisk("MEDIUM");
+    Page<VisitRequest> page1 = requests.findAll(
+        RequestSpecifications.byFilter(f), PageRequest.of(0, 1));
+    assertEquals(2, page1.getTotalElements());
+    assertEquals(1, page1.getContent().size());
+    Page<VisitRequest> page2 = requests.findAll(
+        RequestSpecifications.byFilter(f), PageRequest.of(1, 1));
+    assertEquals(2, page2.getTotalElements());
+    assertEquals(1, page2.getContent().size());
+    assertNotEquals(page1.getContent().get(0).getRequestCode(),
+        page2.getContent().get(0).getRequestCode());
+  }
+
+  @Test
+  void unknownRiskIsRejected() {
+    RequestFilter f = filter();
+    f.setRisk("BOGUS");
+    InvalidDataAccessApiUsageException ex = assertThrows(
+        InvalidDataAccessApiUsageException.class,
+        () -> requests.findAll(RequestSpecifications.byFilter(f)));
+    Throwable cause = ex;
+    boolean found = false;
+    while (cause != null) {
+      if (cause.getMessage() != null
+          && cause.getMessage().contains("Unknown risk")) {
+        found = true;
+        break;
+      }
+      cause = cause.getCause();
+    }
+    assertTrue(found);
+  }
+
 }

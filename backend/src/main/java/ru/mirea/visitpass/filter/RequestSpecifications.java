@@ -1,15 +1,19 @@
 package ru.mirea.visitpass.filter;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 import ru.mirea.visitpass.domain.Employee;
 import ru.mirea.visitpass.domain.VisitRequest;
+import ru.mirea.visitpass.domain.VisitRisk;
 import ru.mirea.visitpass.domain.VisitStatus;
 import ru.mirea.visitpass.domain.VisitTag;
 import ru.mirea.visitpass.domain.Visitor;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -39,6 +43,17 @@ public final class RequestSpecifications {
       }
       if (filter.getEscort() != null) {
         predicates.add(cb.equal(root.get("needsEscort"), filter.getEscort()));
+      }
+      if (filter.getRisk() != null && !filter.getRisk().isBlank()) {
+        VisitRisk wanted;
+        try {
+          wanted = VisitRisk.valueOf(
+              filter.getRisk().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+          throw new IllegalArgumentException(
+              "Unknown risk: " + filter.getRisk());
+        }
+        predicates.add(riskPredicate(root, cb, wanted, LocalDate.now()));
       }
       if (filter.getTag() != null && !filter.getTag().isBlank()) {
         Join<VisitRequest, VisitTag> tag =
@@ -80,6 +95,32 @@ public final class RequestSpecifications {
       }
       query.distinct(true);
       return cb.and(predicates.toArray(new Predicate[0]));
+    };
+  }
+
+  /**
+   * Mirrors {@code VisitRiskCalculator}: LOW short-circuits first,
+   * then HIGH, otherwise MEDIUM.
+   */
+  private static Predicate riskPredicate(Root<VisitRequest> root,
+      CriteriaBuilder cb, VisitRisk wanted, LocalDate today) {
+    Predicate low = cb.or(
+        cb.equal(root.get("status"), VisitStatus.CANCELLED),
+        cb.and(
+            cb.equal(root.get("status"), VisitStatus.COMPLETED),
+            cb.lessThan(root.get("visitDate"), today)));
+    Predicate high = cb.or(
+        cb.and(
+            cb.isTrue(root.get("needsEscort")),
+            cb.greaterThanOrEqualTo(root.get("guestCount"), 3)),
+        cb.and(
+            cb.equal(root.get("status"), VisitStatus.SUBMITTED),
+            cb.lessThanOrEqualTo(root.get("visitDate"),
+                today.plusDays(1))));
+    return switch (wanted) {
+      case LOW -> low;
+      case HIGH -> cb.and(cb.not(low), high);
+      case MEDIUM -> cb.and(cb.not(low), cb.not(high));
     };
   }
 }

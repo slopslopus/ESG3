@@ -71,8 +71,8 @@ public class RequestService {
   }
 
   /**
-   * Lists requests. When {@code risk} is set, totals are page-relative
-   * (risk is computed in memory, not stored).
+   * Lists requests. Computed {@code risk} is filtered in the database
+   * query, so totals stay correct across pages.
    */
   @Transactional(readOnly = true)
   public Page<RequestResponse> list(RequestFilter filter, Pageable pageable) {
@@ -81,20 +81,6 @@ public class RequestService {
     List<RequestResponse> content = page.getContent().stream()
         .map(this::toResponse)
         .toList();
-    if (filter.getRisk() != null && !filter.getRisk().isBlank()) {
-      VisitRisk wanted;
-      try {
-        wanted = VisitRisk.valueOf(
-            filter.getRisk().trim().toUpperCase(Locale.ROOT));
-      } catch (IllegalArgumentException ex) {
-        throw new IllegalArgumentException(
-            "Unknown risk: " + filter.getRisk());
-      }
-      content = content.stream()
-          .filter(r -> wanted.name().equals(r.getRisk()))
-          .toList();
-      return new PageImpl<>(content, pageable, content.size());
-    }
     return new PageImpl<>(content, pageable, page.getTotalElements());
   }
 
