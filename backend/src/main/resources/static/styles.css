@@ -29,3 +29,12 @@ tr.archived td { color: var(--muted); }
   th:nth-child(n+5), td:nth-child(n+5) { display: none; }
   #reqTable th:nth-child(n+5), #reqTable td:nth-child(n+5) { display: table-cell; }
 }
+[hidden] { display: none !important; }
+.muted { color: var(--muted); }
+.auth-wrap { display: flex; justify-content: center; padding-top: 48px; }
+.auth-card { background: var(--panel); border-radius: 12px; padding: 28px; width: 100%; max-width: 420px; }
+.auth-card h2 { margin: 0; }
+.auth-card .muted { margin: 4px 0 8px; }
+.auth-card form { flex-direction: column; align-items: stretch; }
+.auth-card input { width: 100%; }
+.auth-card .btn-block { width: 100%; background: var(--accent); border-color: var(--accent); color: #fff; margin-top: 8px; }
