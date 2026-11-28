@@ -12,6 +12,7 @@ const state = {
   currentReqId: null,
   employees: [], // cached GET /api/employees (active) for dropdowns
   permanentDeleteEnabled: false,
+  reqTotal: 1, usersTotal: 1, auditTotal: 1,
 };
 
 function roles() { return (state.user && state.user.roles) || []; }
@@ -77,7 +78,7 @@ function logoutLocal() {
   document.getElementById('tabs').hidden = true;
   document.getElementById('logoutBtn').hidden = true;
   document.getElementById('changePwBtn').hidden = true;
-  document.getElementById('changePwPanel').hidden = true;
+  document.getElementById('changePwOverlay').hidden = true;
   document.getElementById('userbox').hidden = true;
   show('login');
 }
@@ -217,12 +218,14 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('changePwBtn').addEventListener('click', () => {
-  const p = document.getElementById('changePwPanel');
-  p.hidden = !p.hidden;
+  document.getElementById('changePwOverlay').hidden = false;
   document.getElementById('changePwLoggedMsg').textContent = '';
 });
 document.getElementById('changePwCancel').addEventListener('click', () => {
-  document.getElementById('changePwPanel').hidden = true;
+  document.getElementById('changePwOverlay').hidden = true;
+});
+document.getElementById('changePwOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'changePwOverlay') e.target.hidden = true;
 });
 document.getElementById('changePwLoggedForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -309,6 +312,12 @@ async function loadRequests() {
     state.lastReqFilter = q;
     const res = await api('/api/requests?' + q);
     const data = await jsonOrThrow(res, 'Заявки');
+    state.reqTotal = data.totalPages || 1;
+    if (state.reqPage > 0 && state.reqPage >= state.reqTotal) {
+      state.reqPage = state.reqTotal - 1;
+      loadRequests();
+      return;
+    }
     const list = data.content || [];
     const tb = document.querySelector('#reqTable tbody');
     tb.innerHTML = '';
@@ -348,7 +357,7 @@ document.getElementById('reqPrev').addEventListener('click', () => {
   if (state.reqPage > 0) { state.reqPage--; loadRequests(); }
 });
 document.getElementById('reqNext').addEventListener('click', () => {
-  state.reqPage++; loadRequests();
+  if (state.reqPage + 1 < state.reqTotal) { state.reqPage++; loadRequests(); }
 });
 document.getElementById('reqExportBtn').addEventListener('click', downloadExport);
 document.getElementById('csvExportBtn').addEventListener('click', downloadExport);
@@ -768,6 +777,12 @@ async function loadUsers() {
   try {
     const res = await api('/api/admin/users?page=' + state.usersPage + '&size=20');
     const data = await jsonOrThrow(res, 'Пользователи');
+    state.usersTotal = data.totalPages || 1;
+    if (state.usersPage > 0 && state.usersPage >= state.usersTotal) {
+      state.usersPage = state.usersTotal - 1;
+      loadUsers();
+      return;
+    }
     const list = data.content || [];
     const tb = document.querySelector('#usersTable tbody');
     tb.innerHTML = '';
@@ -814,7 +829,7 @@ document.getElementById('usersPrev').addEventListener('click', () => {
   if (state.usersPage > 0) { state.usersPage--; loadUsers(); }
 });
 document.getElementById('usersNext').addEventListener('click', () => {
-  state.usersPage++; loadUsers();
+  if (state.usersPage + 1 < state.usersTotal) { state.usersPage++; loadUsers(); }
 });
 document.getElementById('userForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -864,6 +879,12 @@ async function loadAudit() {
   try {
     const res = await api('/api/admin/audit?' + currentAuditQuery(state.auditPage));
     const data = await jsonOrThrow(res, 'Аудит');
+    state.auditTotal = data.totalPages || 1;
+    if (state.auditPage > 0 && state.auditPage >= state.auditTotal) {
+      state.auditPage = state.auditTotal - 1;
+      loadAudit();
+      return;
+    }
     const list = data.content || [];
     const tb = document.querySelector('#auditTable tbody');
     tb.innerHTML = '';
@@ -889,7 +910,7 @@ document.getElementById('auditPrev').addEventListener('click', () => {
   if (state.auditPage > 0) { state.auditPage--; loadAudit(); }
 });
 document.getElementById('auditNext').addEventListener('click', () => {
-  state.auditPage++; loadAudit();
+  if (state.auditPage + 1 < state.auditTotal) { state.auditPage++; loadAudit(); }
 });
 
 /* ---------- init ---------- */

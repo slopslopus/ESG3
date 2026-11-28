@@ -12,14 +12,17 @@
   <button id="logoutBtn" hidden>Выйти</button>
   <button id="changePwBtn" hidden>Сменить пароль</button>
 </header>
-<div id="changePwPanel" hidden>
-  <form id="changePwLoggedForm">
-    <label>Старый пароль <input name="oldPassword" type="password" required></label>
-    <label>Новый пароль <input name="newPassword" type="password" required minlength="8"></label>
-    <button type="submit">Сменить</button>
-    <button type="button" id="changePwCancel">Отмена</button>
-  </form>
-  <p id="changePwLoggedMsg"></p>
+<div id="changePwOverlay" hidden>
+  <div class="modal">
+    <h3>Смена пароля</h3>
+    <form id="changePwLoggedForm">
+      <label>Старый пароль <input name="oldPassword" type="password" required></label>
+      <label>Новый пароль <input name="newPassword" type="password" required minlength="8"></label>
+      <button type="submit" class="btn-block">Сменить</button>
+      <button type="button" id="changePwCancel" class="btn-block">Отмена</button>
+    </form>
+    <p id="changePwLoggedMsg"></p>
+  </div>
 </div>
 
 <nav id="tabs" hidden>

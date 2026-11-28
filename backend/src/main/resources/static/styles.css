@@ -38,6 +38,11 @@ tr.archived td { color: var(--muted); }
 .auth-card form { flex-direction: column; align-items: stretch; }
 .auth-card input { width: 100%; }
 .auth-card .btn-block { width: 100%; background: var(--accent); border-color: var(--accent); color: #fff; margin-top: 8px; }
-#changePwPanel { background: var(--panel); border-top: 1px solid #2b303b; padding: 8px 16px; }
-#changePwPanel form { margin: 8px 0; }
 #changePwLoggedMsg { margin: 4px 0 8px; }
+#changePwOverlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; justify-content: center; align-items: center; z-index: 50; }
+.modal { background: var(--panel); border-radius: 12px; padding: 24px; width: 100%; max-width: 380px; }
+.modal h3 { margin: 0 0 8px; }
+.modal form { flex-direction: column; align-items: stretch; }
+.modal input { width: 100%; }
+.modal .btn-block { width: 100%; margin-top: 8px; }
+.modal button[type="submit"] { background: var(--accent); border-color: var(--accent); color: #fff; }
